@@ -1,26 +1,27 @@
-BOT_NAME = 'spy_analytics_crawler'
+# Scrapy 设置
+BOT_NAME = "spy_analytics_crawler"
 
-SPIDER_MODULES = ['crawler.spiders']
-NEWSPIDER_MODULE = 'crawler.spiders'
+SPIDER_MODULES = ["crawler.spiders"]
+NEWSPIDER_MODULE = "crawler.spiders"
 
-ROBOTSTXT_OBEY = False
+# 遵守 robots.txt（arXiv 的 robots.txt 允许爬取）
+ROBOTSTXT_OBEY = True
 
+# 下载延迟，防止请求太快
 DOWNLOAD_DELAY = 2
 RANDOMIZE_DOWNLOAD_DELAY = True
 
+# 默认请求头
 DEFAULT_REQUEST_HEADERS = {
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'en',
+    "Accept": "application/atom+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en",
+    "User-Agent": "SpyAnalytics/0.1 (+https://github.com/qiumy1879/spy-analytics)",
 }
 
-DOWNLOADER_MIDDLEWARES = {
-    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
-    'scrapy_fake_useragent.middleware.RandomUserAgentMiddleware': 400,
-}
-
+# 项目管道
 ITEM_PIPELINES = {
-    'crawler.pipelines.ListingPipeline': 300,
+    "crawler.pipelines.PaperPipeline": 300,
 }
 
-LOG_LEVEL = 'INFO'
-
+# 日志级别
+LOG_LEVEL = "INFO"

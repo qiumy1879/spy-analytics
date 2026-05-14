@@ -1,50 +1,44 @@
 import scrapy
 
 
-class ListingItem(scrapy.Item):
-    """爬虫数据项：定义从网站抓取的数据结构
-    
-    这个类定义了我们要从招聘网站等平台抓取的所有字段
+class PaperItem(scrapy.Item):
+    """论文数据项：定义从 arXiv 抓取的数据结构
+
+    v0.1 - 数据分析版本：不包含摘要
     """
-    
-    # 职位/列表标题
+
+    # arXiv 论文 ID，如 "2301.12345"
+    paper_id = scrapy.Field()
+
+    # 论文标题
     title = scrapy.Field()
-    
-    # 公司名称
-    company = scrapy.Field()
-    
-    # 原始薪资格式（如 "15-25K"）
-    salary = scrapy.Field()
-    
-    # 薪资下限（解析后，数字格式）
-    salary_min = scrapy.Field()
-    
-    # 薪资上限（解析后，数字格式）
-    salary_max = scrapy.Field()
-    
-    # 城市
-    city = scrapy.Field()
-    
-    # 区域/区县
-    district = scrapy.Field()
-    
-    # 标签/技能要求（JSON字符串或逗号分隔）
-    tags = scrapy.Field()
-    
-    # 职位描述
-    description = scrapy.Field()
-    
-    # 公司规模
-    company_size = scrapy.Field()
-    
-    # 公司行业
-    company_industry = scrapy.Field()
-    
-    # 数据来源（如 "boss_zhipin", "liepin" 等）
-    source = scrapy.Field()
-    
-    # 原始数据的 URL
-    source_url = scrapy.Field()
-    
-    # 发布时间
+
+    # 作者列表（JSON 字符串存储）
+    authors = scrapy.Field()
+
+    # 发表时间
     published_at = scrapy.Field()
+
+    # arXiv 分类列表（JSON 字符串存储），如 ["cs.AI", "cs.LG"]
+    categories = scrapy.Field()
+
+    # 关键词/tags（JSON 字符串存储）
+    keywords = scrapy.Field()
+
+    # 数据来源，固定为 "arxiv"
+    source = scrapy.Field()
+
+    # arXiv 页面 URL
+    source_url = scrapy.Field()
+
+    # PDF 下载链接
+    pdf_url = scrapy.Field()
+
+    # arXiv 最后更新时间
+    last_updated = scrapy.Field()
+
+    # 作者备注（可选）
+    comments = scrapy.Field()
+
+    # 期刊引用（可选，如已发表在期刊上）
+    journal_ref = scrapy.Field()

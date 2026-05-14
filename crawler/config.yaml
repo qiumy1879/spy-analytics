@@ -1,0 +1,33 @@
+# Spy Analytics - arXiv 爬虫配置
+
+arXiv:
+  # 要爬取的分类列表
+  categories:
+    - cs.AI    # 人工智能
+    - cs.LG    # 机器学习
+    - cs.RO    # 机器人
+    - cs.CV    # 计算机视觉
+    - cs.NE    # 神经与演化计算
+
+  # 爬取策略（选项 B：固定量爬取）
+  crawl_strategy: recent_days
+
+  # 爬取最近多少天的论文（用于选项 B）
+  days_back: 7
+
+  # 每批爬取的最大论文数量（限制，防止一次拉取太多）
+  max_results_per_request: 500
+
+  # 请求间隔（秒）
+  request_delay: 2
+
+  # arXiv API 基础 URL
+  api_base_url: "http://export.arxiv.org/api/query"
+
+# 数据库配置
+database:
+  dbname: "spy_analytics"
+  user: "admin"
+  password: "password"
+  host: "localhost"
+  port: "5432"
