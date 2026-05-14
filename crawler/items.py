@@ -1,7 +1,7 @@
 import scrapy
 
 
-class JobItem(scrapy.Item):
+class ListingItem(scrapy.Item):
     title = scrapy.Field()
     company = scrapy.Field()
     salary = scrapy.Field()

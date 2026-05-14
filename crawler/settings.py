@@ -1,4 +1,4 @@
-BOT_NAME = 'jobspy_crawler'
+BOT_NAME = 'spy_analytics_crawler'
 
 SPIDER_MODULES = ['crawler.spiders']
 NEWSPIDER_MODULE = 'crawler.spiders'
@@ -19,7 +19,7 @@ DOWNLOADER_MIDDLEWARES = {
 }
 
 ITEM_PIPELINES = {
-    'crawler.pipelines.JobPipeline': 300,
+    'crawler.pipelines.ListingPipeline': 300,
 }
 
 LOG_LEVEL = 'INFO'

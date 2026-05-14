@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 
 
-class JobBase(BaseModel):
+class ListingBase(BaseModel):
     title: str
     company: str
     salary: Optional[str] = None
@@ -20,15 +20,15 @@ class JobBase(BaseModel):
     published_at: Optional[datetime] = None
 
 
-class JobCreate(JobBase):
+class ListingCreate(ListingBase):
     pass
 
 
-class JobUpdate(JobBase):
+class ListingUpdate(ListingBase):
     pass
 
 
-class JobResponse(JobBase):
+class ListingResponse(ListingBase):
     id: int
     created_at: datetime
     updated_at: datetime

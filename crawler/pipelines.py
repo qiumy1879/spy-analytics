@@ -6,7 +6,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-class JobPipeline:
+class ListingPipeline:
     def __init__(self, db_settings):
         self.db_settings = db_settings
         self.conn = None
@@ -14,7 +14,7 @@ class JobPipeline:
     @classmethod
     def from_crawler(cls, crawler):
         db_settings = {
-            'dbname': 'jobspy',
+            'dbname': 'spy_analytics',
             'user': 'admin',
             'password': 'password',
             'host': 'localhost',
@@ -40,7 +40,7 @@ class JobPipeline:
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO jobs (
+                    INSERT INTO listings (
                         title, company, salary, salary_min, salary_max, 
                         city, district, tags, description, 
                         company_size, company_industry, 
@@ -77,7 +77,7 @@ class JobPipeline:
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
-                    CREATE TABLE IF NOT EXISTS jobs (
+                    CREATE TABLE IF NOT EXISTS listings (
                         id SERIAL PRIMARY KEY,
                         title VARCHAR(255) NOT NULL,
                         company VARCHAR(255) NOT NULL,

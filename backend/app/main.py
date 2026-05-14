@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
-    title="JobSpy API",
-    description="招聘数据采集与分析平台 API",
+    title="Spy Analytics API",
+    description="数据采集与分析平台 API",
     version="0.1.0",
 )
 
@@ -18,7 +18,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to JobSpy API", "version": "0.1.0"}
+    return {"message": "Welcome to Spy Analytics API", "version": "0.1.0"}
 
 
 @app.get("/health")

@@ -6,7 +6,7 @@ from typing import Optional
 class DataExtractor:
     def __init__(self, db_settings: Optional[dict] = None):
         self.db_settings = db_settings or {
-            'dbname': 'jobspy',
+            'dbname': 'spy_analytics',
             'user': 'admin',
             'password': 'password',
             'host': 'localhost',
@@ -17,11 +17,11 @@ class DataExtractor:
     def connect(self):
         self.conn = psycopg2.connect(**self.db_settings)
 
-    def extract_jobs(self, filters: Optional[dict] = None) -> pd.DataFrame:
+    def extract_listings(self, filters: Optional[dict] = None) -> pd.DataFrame:
         if not self.conn:
             self.connect()
         
-        query = "SELECT * FROM jobs"
+        query = "SELECT * FROM listings"
         if filters:
             conditions = []
             for key, value in filters.items():

@@ -1,5 +1,5 @@
 import scrapy
-from crawler.items import JobItem
+from crawler.items import ListingItem
 
 
 class ExampleSpider(scrapy.Spider):

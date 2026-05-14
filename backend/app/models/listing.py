@@ -5,8 +5,8 @@ from datetime import datetime
 Base = declarative_base()
 
 
-class Job(Base):
-    __tablename__ = "jobs"
+class Listing(Base):
+    __tablename__ = "listings"
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
