@@ -5,7 +5,8 @@ class Settings(BaseSettings):
     app_name: str = "Spy Analytics API"
     app_version: str = "0.1.0"
     
-    database_url: str = "postgresql://admin:password@localhost:5432/spy_analytics"
+    # 临时使用 SQLite 做测试
+    database_url: str = "sqlite:///./spy_analytics.db"
     redis_url: str = "redis://localhost:6379/0"
     
     secret_key: str = "your-secret-key-change-in-production"
@@ -17,4 +18,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
