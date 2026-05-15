@@ -13,10 +13,10 @@ arXiv:
   crawl_strategy: recent_days
 
   # 爬取最近多少天的论文（用于选项 B）
-  days_back: 7
+  days_back: 1
 
   # 每批爬取的最大论文数量（限制，防止一次拉取太多）
-  max_results_per_request: 500
+  max_results_per_request: 10
 
   # 请求间隔（秒）
   request_delay: 2
