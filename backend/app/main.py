@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.api import papers
+from app import crawler_manager
 from app.core.database import engine, Base
 from app.models import paper
 import os
@@ -13,7 +14,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Spy Analytics API",
     description="arXiv 论文数据分析平台 API",
-    version="1.2.0",
+    version="1.3.0",
 )
 
 app.add_middleware(
@@ -26,6 +27,7 @@ app.add_middleware(
 
 # 包含路由
 app.include_router(papers.router)
+app.include_router(crawler_manager.router)
 
 
 @app.get("/")

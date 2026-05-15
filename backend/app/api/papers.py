@@ -28,7 +28,7 @@ def get_papers(
     - skip: 跳过多少条（分页用）
     - limit: 最多返回多少条
     - category: 按分类筛选（如 cs.AI）
-    - keyword: 按关键词搜索（搜索标题和作者）
+    - keyword: 按关键词搜索（只搜索标题）
     """
     query = db.query(Paper)
     
@@ -36,12 +36,9 @@ def get_papers(
     if category:
         query = query.filter(Paper.categories.contains(category))
     
-    # 按关键词搜索（标题或作者中包含）
+    # 按关键词搜索（只搜索标题）
     if keyword:
-        query = query.filter(
-            (Paper.title.contains(keyword)) | 
-            (Paper.authors.contains(keyword))
-        )
+        query = query.filter(Paper.title.contains(keyword))
     
     papers = query.offset(skip).limit(limit).all()
     return papers
@@ -126,13 +123,12 @@ def smart_search(
         from sqlalchemy import or_
         query = query.filter(or_(*category_filters))
     
-    # 按关键词搜索（标题或作者）
+    # 按关键词搜索（只搜索标题）
     if search_data["keywords"]:
         from sqlalchemy import or_
         keyword_filters = []
         for keyword in search_data["keywords"]:
             keyword_filters.append(Paper.title.ilike(f"%{keyword}%"))
-            keyword_filters.append(Paper.authors.ilike(f"%{keyword}%"))
         
         if keyword_filters:
             query = query.filter(or_(*keyword_filters))
@@ -167,6 +163,33 @@ def search_suggestions(
     suggestions = get_search_suggestions(q)
     return {
         "suggestions": suggestions
+    }
+
+
+@router.get("/search/title")
+def search_papers_by_title(
+    keyword: str = Query(..., description="搜索关键词（只搜索标题）"),
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    根据论文标题搜索
+    
+    Args:
+        keyword: 搜索关键词
+        limit: 返回结果数量
+    
+    Returns:
+        匹配的论文列表
+    """
+    papers = db.query(Paper).filter(
+        Paper.title.contains(keyword)
+    ).limit(limit).all()
+    
+    return {
+        "keyword": keyword,
+        "total": len(papers),
+        "papers": papers
     }
 
 

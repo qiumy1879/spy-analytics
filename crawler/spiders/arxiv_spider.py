@@ -14,7 +14,8 @@ class ArxivSpider(scrapy.Spider):
     支持命令行参数自定义爬取范围
     
     使用示例：
-    python -m scrapy crawl arxiv -a days=3 -a categories=cs.AI,cs.LG
+    python -m scrapy crawl arxiv -a days=3 -a categories=cs.AI,cs.LG -a max_results=50
+    python -m scrapy crawl arxiv -a years=1 -a categories=cs.AI,cs.LG -a max_results=100
     """
 
     name = "arxiv"
@@ -25,7 +26,14 @@ class ArxivSpider(scrapy.Spider):
         self.config = self._load_config()
         
         # 从命令行参数覆盖配置（如果提供）
-        self.days_back = int(getattr(self, 'days', self.config.get('arXiv', {}).get('days_back', 1)))
+        # 优先使用 years，如果没有则使用 days
+        years_arg = getattr(self, 'years', None)
+        if years_arg:
+            self.years_back = float(years_arg)
+            self.days_back = int(self.years_back * 365)
+        else:
+            self.days_back = int(getattr(self, 'days', self.config.get('arXiv', {}).get('days_back', 1)))
+            self.years_back = self.days_back / 365
         
         # 解析分类参数（支持逗号分隔的多个分类）
         categories_arg = getattr(self, 'categories', None)
@@ -34,7 +42,12 @@ class ArxivSpider(scrapy.Spider):
         else:
             self.categories = self.config.get('arXiv', {}).get('categories', [])
         
-        self.max_results = self.config.get('arXiv', {}).get('max_results_per_request', 10)
+        # 最大结果数
+        max_results_arg = getattr(self, 'max_results', None)
+        if max_results_arg:
+            self.max_results = int(max_results_arg)
+        else:
+            self.max_results = self.config.get('arXiv', {}).get('max_results_per_request', 10)
 
     def _load_config(self):
         """加载配置文件"""
@@ -49,7 +62,10 @@ class ArxivSpider(scrapy.Spider):
         """生成起始请求 - 使用 arxiv.py 直接抓取"""
         self.logger.info(f"="*60)
         self.logger.info(f"开始爬取 arXiv 论文")
-        self.logger.info(f"爬取天数：最近 {self.days_back} 天")
+        if self.years_back >= 1:
+            self.logger.info(f"爬取时间：最近 {self.years_back:.1f} 年 ({self.days_back} 天)")
+        else:
+            self.logger.info(f"爬取时间：最近 {self.days_back} 天")
         self.logger.info(f"爬取分类：{', '.join(self.categories)}")
         self.logger.info(f"每类最多：{self.max_results} 篇")
         self.logger.info(f"="*60)
