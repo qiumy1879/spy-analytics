@@ -44,28 +44,51 @@ def get_papers(
     return papers
 
 
-@router.get("/{paper_id}", response_model=PaperResponse)
-def get_paper(paper_id: str, db: Session = Depends(get_db)):
-    """根据 arXiv ID 获取单个论文"""
-    paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-    return paper
-
-
-@router.post("/", response_model=PaperResponse)
-def create_paper(paper: PaperCreate, db: Session = Depends(get_db)):
-    """创建一个新论文记录"""
-    # 检查是否已存在
-    db_paper = db.query(Paper).filter(Paper.paper_id == paper.paper_id).first()
-    if db_paper:
-        raise HTTPException(status_code=400, detail="Paper already exists")
+@router.get("/research-directions")
+def get_research_directions():
+    """
+    获取所有可用的研究方向列表
     
-    db_paper = Paper(**paper.model_dump())
-    db.add(db_paper)
-    db.commit()
-    db.refresh(db_paper)
-    return db_paper
+    Returns:
+        研究方向列表
+    """
+    directions = []
+    for name, data in RESEARCH_DIRECTIONS.items():
+        directions.append({
+            "name": name,
+            "categories": data["categories"],
+            "sub_directions": data["sub_directions"]
+        })
+    return {
+        "directions": directions
+    }
+
+
+@router.get("/search/title")
+def search_papers_by_title(
+    keyword: str = Query(..., description="搜索关键词（只搜索标题）"),
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    根据论文标题搜索
+    
+    Args:
+        keyword: 搜索关键词
+        limit: 返回结果数量
+    
+    Returns:
+        匹配的论文列表
+    """
+    papers = db.query(Paper).filter(
+        Paper.title.contains(keyword)
+    ).limit(limit).all()
+    
+    return {
+        "keyword": keyword,
+        "total": len(papers),
+        "papers": papers
+    }
 
 
 @router.get("/stats/summary")
@@ -116,11 +139,11 @@ def smart_search(
     
     # 按分类筛选
     if search_data["categories"]:
+        from sqlalchemy import or_
         category_filters = []
         for cat in search_data["categories"]:
             category_filters.append(Paper.categories.contains(cat))
         
-        from sqlalchemy import or_
         query = query.filter(or_(*category_filters))
     
     # 按关键词搜索（只搜索标题）
@@ -166,48 +189,53 @@ def search_suggestions(
     }
 
 
-@router.get("/search/title")
-def search_papers_by_title(
-    keyword: str = Query(..., description="搜索关键词（只搜索标题）"),
-    limit: int = 100,
-    db: Session = Depends(get_db)
-):
-    """
-    根据论文标题搜索
-    
-    Args:
-        keyword: 搜索关键词
-        limit: 返回结果数量
-    
-    Returns:
-        匹配的论文列表
-    """
-    papers = db.query(Paper).filter(
-        Paper.title.contains(keyword)
-    ).limit(limit).all()
-    
-    return {
-        "keyword": keyword,
-        "total": len(papers),
-        "papers": papers
-    }
+@router.get("/{paper_id}", response_model=PaperResponse)
+def get_paper(paper_id: str, db: Session = Depends(get_db)):
+    """根据 arXiv ID 获取单个论文"""
+    paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    return paper
 
 
-@router.get("/research-directions")
-def get_research_directions():
-    """
-    获取所有可用的研究方向列表
+@router.post("/", response_model=PaperResponse)
+def create_paper(paper: PaperCreate, db: Session = Depends(get_db)):
+    """创建一个新论文记录"""
+    # 检查是否已存在
+    db_paper = db.query(Paper).filter(Paper.paper_id == paper.paper_id).first()
+    if db_paper:
+        raise HTTPException(status_code=400, detail="Paper already exists")
     
-    Returns:
-        研究方向列表
-    """
-    directions = []
-    for name, data in RESEARCH_DIRECTIONS.items():
-        directions.append({
-            "name": name,
-            "categories": data["categories"],
-            "sub_directions": data["sub_directions"]
-        })
-    return {
-        "directions": directions
-    }
+    db_paper = Paper(**paper.model_dump())
+    db.add(db_paper)
+    db.commit()
+    db.refresh(db_paper)
+    return db_paper
+
+
+@router.put("/{paper_id}", response_model=PaperResponse)
+def update_paper(paper_id: str, paper: PaperCreate, db: Session = Depends(get_db)):
+    """更新论文记录"""
+    db_paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
+    if not db_paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    
+    # 更新字段
+    for key, value in paper.model_dump().items():
+        setattr(db_paper, key, value)
+    
+    db.commit()
+    db.refresh(db_paper)
+    return db_paper
+
+
+@router.delete("/{paper_id}")
+def delete_paper(paper_id: str, db: Session = Depends(get_db)):
+    """删除论文记录"""
+    db_paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
+    if not db_paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    
+    db.delete(db_paper)
+    db.commit()
+    return {"message": "Paper deleted successfully"}

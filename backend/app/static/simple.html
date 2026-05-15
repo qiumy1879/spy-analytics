@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spy Analytics - arXiv 论文分析平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            padding: 30px 0;
+        }
+        .header h1 { font-size: 2rem; margin-bottom: 10px; }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .card h2 { font-size: 1.3rem; margin-bottom: 20px; color: #333; }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 8px; font-weight: 500; color: #555; }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-radius: 6px;
+        }
+        .log-box {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-top: 15px;
+        }
+        .log-line { padding: 4px 0; border-bottom: 1px solid #334155; }
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-left: 15px;
+        }
+        .status.running { background: #dcfce7; color: #166534; }
+        .status.idle { background: #f1f5f9; color: #475569; }
+        .paper-list { margin-top: 15px; }
+        .paper-item {
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .paper-title { font-weight: 600; color: #333; margin-bottom: 8px; }
+        .paper-meta { font-size: 0.9rem; color: #666; }
+        .paper-link { color: #667eea; text-decoration: none; margin-right: 15px; }
+        .paper-link:hover { text-decoration: underline; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab {
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .tab.active { background: white; color: #667eea; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .empty { text-align: center; padding: 40px; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Spy Analytics</h1>
+            <p>arXiv 论文智能分析平台</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showPanel('search')">🔍 搜索论文</button>
+            <button class="tab" onclick="showPanel('crawler')">🕷️ 数据采集</button>
+        </div>
+
+        <!-- 搜索面板 -->
+        <div id="search-panel" class="panel active">
+            <div class="card">
+                <h2>论文搜索</h2>
+                <div class="input-group">
+                    <input type="text" id="searchKeyword" placeholder="输入关键词搜索论文标题...">
+                </div>
+                <button class="btn btn-primary" onclick="searchPapers()">🔍 搜索</button>
+                
+                <div id="searchResults" class="paper-list" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <!-- 爬虫面板 -->
+        <div id="crawler-panel" class="panel">
+            <div class="card">
+                <h2>爬虫配置</h2>
+                
+                <div class="input-group">
+                    <label>爬取时间范围（年）</label>
+                    <input type="number" id="years" value="0.5" step="0.1" min="0.1">
+                </div>
+                
+                <div class="input-group">
+                    <label>每类最大论文数</label>
+                    <input type="number" id="maxResults" value="50" min="10" max="500">
+                </div>
+                
+                <div class="input-group">
+                    <label>选择研究方向：</label>
+                    <div id="categories" class="checkbox-group"></div>
+                </div>
+                
+                <div style="display: flex; align-items: center;">
+                    <button id="startBtn" class="btn btn-success" onclick="startCrawler()">🚀 开始爬取</button>
+                    <span id="status" class="status idle">⏸️ 空闲</span>
+                </div>
+                
+                <div id="logBox" class="log-box">
+                    <div class="log-line">等待启动爬虫...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let logInterval = null;
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCategories();
+        });
+
+        // 显示面板
+        function showPanel(name) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(name + '-panel').classList.add('active');
+            event.target.classList.add('active');
+            
+            if (name === 'crawler') {
+                refreshStatus();
+                logInterval = setInterval(refreshStatus, 2000);
+            } else {
+                if (logInterval) clearInterval(logInterval);
+            }
+        }
+
+        // 加载分类
+        async function loadCategories() {
+            try {
+                const res = await fetch('/crawler/directions');
+                const data = await res.json();
+                const container = document.getElementById('categories');
+                container.innerHTML = data.directions.map(cat => `
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="${cat.code}" checked>
+                        ${cat.name}
+                    </label>
+                `).join('');
+            } catch(e) {
+                console.error('加载分类失败', e);
+            }
+        }
+
+        // 获取选中的分类
+        function getSelectedCategories() {
+            const boxes = document.querySelectorAll('#categories input:checked');
+            return Array.from(boxes).map(b => b.value).join(',');
+        }
+
+        // 启动爬虫
+        async function startCrawler() {
+            const years = parseFloat(document.getElementById('years').value);
+            const maxResults = parseInt(document.getElementById('maxResults').value);
+            const categories = getSelectedCategories();
+
+            if (!categories) {
+                alert('请至少选择一个研究方向');
+                return;
+            }
+
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            btn.textContent = '🚀 启动中...';
+
+            try {
+                const res = await fetch('/crawler/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ years, categories, max_results: maxResults })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    alert('爬虫已启动！');
+                    refreshStatus();
+                    logInterval = setInterval(refreshStatus, 2000);
+                } else {
+                    alert(data.message);
+                }
+            } catch(e) {
+                console.error('启动失败', e);
+                alert('启动爬虫失败');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 开始爬取';
+            }
+        }
+
+        // 刷新状态
+        async function refreshStatus() {
+            try {
+                const res = await fetch('/crawler/status');
+                const data = await res.json();
+
+                const statusEl = document.getElementById('status');
+                const btn = document.getElementById('startBtn');
+                const logBox = document.getElementById('logBox');
+
+                if (data.is_running) {
+                    statusEl.className = 'status running';
+                    statusEl.textContent = '▶️ 运行中';
+                    btn.disabled = true;
+                    btn.textContent = '🕷️ 爬取中...';
+                } else {
+                    statusEl.className = 'status idle';
+                    statusEl.textContent = '⏸️ 空闲';
+                    btn.disabled = false;
+                    btn.textContent = '🚀 开始爬取';
+                }
+
+                if (data.logs && data.logs.length > 0) {
+                    logBox.innerHTML = data.logs.map(line => 
+                        `<div class="log-line">${escapeHtml(line)}</div>`
+                    ).join('');
+                    logBox.scrollTop = logBox.scrollHeight;
+                }
+            } catch(e) {
+                console.error('刷新状态失败', e);
+            }
+        }
+
+        // 搜索论文
+        async function searchPapers() {
+            const keyword = document.getElementById('searchKeyword').value.trim();
+            if (!keyword) {
+                alert('请输入搜索内容');
+                return;
+            }
+
+            const resultsEl = document.getElementById('searchResults');
+            resultsEl.innerHTML = '<div class="empty">搜索中...</div>';
+
+            try {
+                const res = await fetch(`/papers/search/title?keyword=${encodeURIComponent(keyword)}`);
+                const data = await res.json();
+
+                if (data.papers && data.papers.length > 0) {
+                    resultsEl.innerHTML = data.papers.map(paper => {
+                        let authors = '未知作者';
+                        try {
+                            authors = JSON.parse(paper.authors || '[]').join(', ');
+                        } catch(e) {}
+                        return `
+                            <div class="paper-item">
+                                <div class="paper-title">${escapeHtml(paper.title)}</div>
+                                <div class="paper-meta">
+                                    ✍️ ${authors.substring(0, 100)}${authors.length > 100 ? '...' : ''} | 
+                                    📅 ${paper.published_at ? new Date(paper.published_at).toLocaleDateString('zh-CN') : ''}
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <a href="${paper.source_url}" target="_blank" class="paper-link">🔗 arXiv 页面</a>
+                                    ${paper.pdf_url ? `<a href="${paper.pdf_url}" target="_blank" class="paper-link">📄 PDF</a>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    resultsEl.innerHTML = `
+                        <div class="empty">
+                            <p>📭 暂无相关论文</p>
+                            <p style="margin-top: 10px; font-size: 0.9rem;">试试运行爬虫来获取更多数据</p>
+                        </div>
+                    `;
+                }
+            } catch(e) {
+                console.error('搜索失败', e);
+                resultsEl.innerHTML = '<div class="empty">搜索失败</div>';
+            }
+        }
+
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 回车搜索
+        document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchPapers();
+        });
+    </script>
+</body>
+</html>

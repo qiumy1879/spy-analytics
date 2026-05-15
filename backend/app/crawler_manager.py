@@ -69,14 +69,17 @@ def run_crawler_process(years: float, categories: str, max_results: int):
             universal_newlines=True
         )
         
-        # 读取输出
+        # 读取输出，过滤掉SQLAlchemy调试信息
         for line in process.stdout:
             line = line.strip()
             if line:
+                # 过滤掉SQLAlchemy的调试信息
+                if any(keyword in line for keyword in ["sqlalchemy.engine", "BEGIN", "COMMIT", "SELECT", "INSERT", "UPDATE"]):
+                    continue
                 crawler_status["logs"].append(line)
                 # 限制日志数量，防止内存溢出
-                if len(crawler_status["logs"]) > 500:
-                    crawler_status["logs"] = crawler_status["logs"][-200:]
+                if len(crawler_status["logs"]) > 200:
+                    crawler_status["logs"] = crawler_status["logs"][-100:]
         
         process.wait()
         
