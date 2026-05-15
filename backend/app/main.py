@@ -10,7 +10,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Spy Analytics API",
     description="arXiv 论文数据分析平台 API",
-    version="1.0.0",
+    version="1.1.0",
 )
 
 app.add_middleware(
@@ -27,7 +27,7 @@ app.include_router(papers.router)
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Spy Analytics API", "version": "1.0.0"}
+    return {"message": "Welcome to Spy Analytics API", "version": "1.1.0"}
 
 
 @app.get("/health")

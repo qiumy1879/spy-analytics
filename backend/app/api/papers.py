@@ -17,13 +17,30 @@ def get_papers(
     skip: int = 0,
     limit: int = 100,
     category: Optional[str] = None,
+    keyword: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """获取论文列表"""
+    """
+    获取论文列表
+    
+    参数说明：
+    - skip: 跳过多少条（分页用）
+    - limit: 最多返回多少条
+    - category: 按分类筛选（如 cs.AI）
+    - keyword: 按关键词搜索（搜索标题和作者）
+    """
     query = db.query(Paper)
     
+    # 按分类筛选
     if category:
         query = query.filter(Paper.categories.contains(category))
+    
+    # 按关键词搜索（标题或作者中包含）
+    if keyword:
+        query = query.filter(
+            (Paper.title.contains(keyword)) | 
+            (Paper.authors.contains(keyword))
+        )
     
     papers = query.offset(skip).limit(limit).all()
     return papers

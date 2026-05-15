@@ -12,21 +12,25 @@ Spy Analytics 是一个 arXiv 论文数据采集与分析平台，爬取 arXiv �
 - **ORM**: SQLAlchemy
 - **容器化**: Docker + Docker Compose (可选)
 
-## 已实现功能 (v1.0.0)
+## 已实现功能 (v1.1.0)
 
 ✅ **后端 API**
 - FastAPI 应用
 - SQLite 数据库集成
 - 论文数据 CRUD 接口
+- 关键词搜索功能（搜索标题和作者）
+- 分类筛选功能
 - 统计信息接口
 - Swagger API 文档
 
 ✅ **arXiv 爬虫**
 - 使用 arxiv.py 库
+- 支持命令行参数（自定义天数和分类）
 - 可配置爬取策略
 - 按分类和时间范围过滤
 - Scrapy 管道集成
 - 复用后端 SQLAlchemy 模型
+- 友好的中文日志输出
 
 ## 项目结构
 
@@ -74,6 +78,8 @@ cd ..
 pip install arxiv scrapy
 ```
 
+---
+
 #### 2. 启动后端 API
 
 ```bash
@@ -81,23 +87,51 @@ cd backend
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-访问以下地址：
-- API 主页: http://localhost:8000/
-- API 文档: http://localhost:8000/docs
-- 论文列表: http://localhost:8000/papers/
+启动后访问以下地址：
+- **API 主页**: http://localhost:8000
+- **API 文档（推荐！）**: http://localhost:8000/docs
+  - 这是交互式文档，可以直接在浏览器里测试 API！
+- **论文列表**: http://localhost:8000/papers/
 
-#### 3. 运行爬虫
+---
+
+#### 3. 运行爬虫采集数据
+
+爬虫支持两种使用方式：
+
+##### 方式一：使用配置文件（默认）
+
+直接运行，使用 `crawler/config.yaml` 中的配置：
 
 ```bash
 cd /workspace
 python -m scrapy crawl arxiv
 ```
 
-爬虫会根据 `crawler/config.yaml` 中的配置爬取 arXiv 论文并存储到数据库。
+##### 方式二：使用命令行参数（推荐，更灵活！）
+
+自定义爬取天数和分类：
+
+```bash
+# 只爬取最近 1 天，只爬人工智能分类
+python -m scrapy crawl arxiv -a days=1 -a categories=cs.AI
+
+# 爬取最近 3 天，爬多个分类（用逗号分隔）
+python -m scrapy crawl arxiv -a days=3 -a categories=cs.AI,cs.LG,cs.RO
+
+# 爬取最近 7 天，爬 5 个分类
+python -m scrapy crawl arxiv -a days=7 -a categories=cs.AI,cs.LG,cs.RO,cs.CV,cs.NE
+```
+
+**参数说明：**
+- `days`: 爬取最近几天的论文（如不指定，使用配置文件中的默认值）
+- `categories`: 要爬取的分类，多个分类用逗号分隔（如不指定，使用配置文件中的默认值）
+
+---
 
 ### 配置说明
 
-修改 `crawler/config.yaml` 可以调整爬取策略：
+修改 `crawler/config.yaml` 可以调整默认爬取策略：
 
 ```yaml
 arXiv:
@@ -107,25 +141,110 @@ arXiv:
     - cs.RO    # 机器人
     - cs.CV    # 计算机视觉
     - cs.NE    # 神经与演化计算
-  days_back: 1              # 爬取最近几天的论文
-  max_results_per_request: 10 # 每个分类最多论文数
+  days_back: 1              # 爬取最近几天
+  max_results_per_request: 10 # 每类最多论文数
 ```
 
-## API 接口
+---
 
-### 论文相关
+## API 接口使用指南
 
-- `GET /papers/` - 获取论文列表
-- `GET /papers/{paper_id}` - 获取单篇论文
-- `POST /papers/` - 创建论文
-- `PUT /papers/{paper_id}` - 更新论文
-- `DELETE /papers/{paper_id}` - 删除论文
-- `GET /papers/stats/summary` - 获取统计摘要
+### 基础接口
 
-### 其他
-
-- `GET /` - 欢迎信息
+- `GET /` - 欢迎信息和版本号
 - `GET /health` - 健康检查
+
+### 论文相关接口
+
+#### 1. 获取论文列表（支持搜索和筛选）
+
+**接口**: `GET /papers/`
+
+**参数**:
+- `skip`: 跳过多少条（分页用，默认 0）
+- `limit`: 最多返回多少条（默认 100）
+- `category`: 按分类筛选（如 cs.AI，可选）
+- `keyword`: 按关键词搜索（搜索标题和作者，可选）
+
+**使用示例**（在浏览器或 Swagger UI 中测试）：
+
+```
+# 获取所有论文
+http://localhost:8000/papers/
+
+# 只获取人工智能分类的论文
+http://localhost:8000/papers/?category=cs.AI
+
+# 搜索包含 "GPT" 的论文
+http://localhost:8000/papers/?keyword=GPT
+
+# 搜索包含 "Zhang" 的作者
+http://localhost:8000/papers/?keyword=Zhang
+
+# 组合使用：搜索人工智能分类中包含 "deep" 的论文
+http://localhost:8000/papers/?category=cs.AI&keyword=deep
+```
+
+#### 2. 获取单篇论文
+
+**接口**: `GET /papers/{paper_id}`
+
+**示例**:
+```
+http://localhost:8000/papers/2301.12345v1
+```
+
+#### 3. 获取统计信息
+
+**接口**: `GET /papers/stats/summary`
+
+**返回内容**:
+- 论文总数
+- 各分类的论文数量
+
+---
+
+## arXiv 分类说明
+
+常用的 arXiv 分类：
+- `cs.AI` - 人工智能
+- `cs.LG` - 机器学习
+- `cs.RO` - 机器人
+- `cs.CV` - 计算机视觉
+- `cs.NE` - 神经与演化计算
+- `cs.CL` - 计算语言学
+- `cs.SE` - 软件工程
+
+更多分类请参考：https://arxiv.org/category_taxonomy
+
+---
+
+## 常见问题
+
+### Q: 如何重新运行爬虫？
+A: 直接再次运行爬虫命令即可，已存在的论文会被自动更新，不会重复创建。
+
+### Q: 数据库文件在哪里？
+A: 在项目根目录下：`spy_analytics.db`
+
+### Q: 如何清空数据库重新开始？
+A: 删除 `spy_analytics.db` 文件，然后重新启动后端 API 会自动创建新的数据库。
+
+---
+
+## 更新日志
+
+### v1.1.0 (2026-05-15)
+- ✨ 新增：API 关键词搜索功能
+- ✨ 新增：爬虫支持命令行参数（天数、分类）
+- 📝 优化：添加详细的中文文档和注释
+- 🎨 优化：更友好的日志输出
+
+### v1.0.0 (2026-05-15)
+- 🎉 初始版本发布
+- ✅ 完整的 FastAPI 后端
+- ✅ arXiv 论文爬虫
+- ✅ SQLite 数据库集成
 
 ## 许可证
 
