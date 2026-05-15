@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.models.paper import Paper
 from app.schemas.paper import PaperResponse, PaperCreate
 from app.core.database import get_db
+from app.smart_search import parse_chinese_query, get_search_suggestions, RESEARCH_DIRECTIONS
 import json
 
 router = APIRouter(
@@ -91,4 +92,99 @@ def get_summary_stats(db: Session = Depends(get_db)):
     return {
         "total_papers": total_papers,
         "categories": categories_count
+    }
+
+
+@router.get("/smart-search")
+def smart_search(
+    q: str = Query(..., description="中文搜索关键词，如：具身智能"),
+    db: Session = Depends(get_db)
+):
+    """
+    智能中文搜索接口
+    
+    输入中文关键词，自动识别研究方向，返回相关论文
+    
+    Args:
+        q: 中文搜索关键词，如 "具身智能"
+    
+    Returns:
+        包含搜索建议、子方向、论文结果的字典
+    """
+    # 解析中文查询
+    search_data = parse_chinese_query(q)
+    
+    # 构建查询
+    query = db.query(Paper)
+    
+    # 按分类筛选
+    if search_data["categories"]:
+        category_filters = []
+        for cat in search_data["categories"]:
+            category_filters.append(Paper.categories.contains(cat))
+        
+        from sqlalchemy import or_
+        query = query.filter(or_(*category_filters))
+    
+    # 按关键词搜索（标题或作者）
+    if search_data["keywords"]:
+        from sqlalchemy import or_
+        keyword_filters = []
+        for keyword in search_data["keywords"]:
+            keyword_filters.append(Paper.title.ilike(f"%{keyword}%"))
+            keyword_filters.append(Paper.authors.ilike(f"%{keyword}%"))
+        
+        if keyword_filters:
+            query = query.filter(or_(*keyword_filters))
+    
+    # 执行查询
+    papers = query.limit(50).all()
+    
+    return {
+        "query": q,
+        "matched_direction": q if q in RESEARCH_DIRECTIONS else None,
+        "categories": search_data["categories"],
+        "sub_directions": search_data["sub_directions"],
+        "papers": papers,
+        "total_count": len(papers)
+    }
+
+
+@router.get("/search-suggestions")
+def search_suggestions(
+    q: str = Query("", description="用户输入的查询前缀"),
+    _: Session = Depends(get_db)
+):
+    """
+    获取搜索建议
+    
+    Args:
+        q: 用户输入的查询前缀（可选）
+    
+    Returns:
+        搜索建议列表
+    """
+    suggestions = get_search_suggestions(q)
+    return {
+        "suggestions": suggestions
+    }
+
+
+@router.get("/research-directions")
+def get_research_directions():
+    """
+    获取所有可用的研究方向列表
+    
+    Returns:
+        研究方向列表
+    """
+    directions = []
+    for name, data in RESEARCH_DIRECTIONS.items():
+        directions.append({
+            "name": name,
+            "categories": data["categories"],
+            "sub_directions": data["sub_directions"]
+        })
+    return {
+        "directions": directions
     }

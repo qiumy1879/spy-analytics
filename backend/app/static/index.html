@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spy Analytics - arXiv 论文分析平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 头部 */
+        header {
+            text-align: center;
+            padding: 40px 0;
+            color: white;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* 搜索区域 */
+        .search-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        }
+
+        /* 热门研究方向 */
+        .directions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .direction-tag {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .direction-tag:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        /* 搜索建议 */
+        .suggestions {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .suggestion-item {
+            padding: 10px 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .suggestion-item:hover {
+            background: #e9e9e9;
+        }
+
+        /* 子方向 */
+        .sub-directions {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .sub-direction-tag {
+            display: inline-block;
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .sub-direction-tag:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        /* 论文列表 */
+        .results-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .results-count {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .paper-card {
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            transition: all 0.2s;
+        }
+
+        .paper-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102,126,234,0.1);
+            transform: translateY(-2px);
+        }
+
+        .paper-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .paper-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .paper-tag {
+            padding: 4px 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .paper-links {
+            margin-top: 10px;
+        }
+
+        .paper-link {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 15px;
+            font-size: 0.9rem;
+        }
+
+        .paper-link:hover {
+            text-decoration: underline;
+        }
+
+        /* 加载动画 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 Spy Analytics</h1>
+            <p>arXiv 论文智能分析平台</p>
+        </header>
+
+        <div class="search-section">
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder="输入研究方向，如：具身智能、大模型、人工智能..."
+                >
+                <button class="search-btn" onclick="doSearch()">🔍 搜索</button>
+            </div>
+            
+            <div>
+                <p style="margin-bottom:10px;font-weight:500;">热门研究方向：</p>
+                <div class="directions" id="directionsList">
+                    <!-- 研究方向标签会在这里动态加载 -->
+                </div>
+            </div>
+
+            <div class="suggestions" id="suggestions">
+                <!-- 搜索建议会在这里显示 -->
+            </div>
+
+            <div class="sub-directions" id="subDirections">
+                <p style="margin-bottom:10px;font-weight:500;">相关子方向：</p>
+                <div id="subDirectionsList"></div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在搜索论文...</p>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="results-header">
+                <h2>📄 搜索结果</h2>
+                <span class="results-count" id="resultsCount"></span>
+            </div>
+            <div id="papersList"></div>
+        </div>
+    </div>
+
+    <script>
+        let allDirections = [];
+        let currentQuery = '';
+
+        // 页面加载时获取研究方向
+        async function loadDirections() {
+            try {
+                const response = await fetch('/papers/research-directions');
+                const data = await response.json();
+                allDirections = data.directions;
+                renderDirections(allDirections);
+            } catch (error) {
+                console.error('加载研究方向失败:', error);
+            }
+        }
+
+        // 渲染研究方向标签
+        function renderDirections(directions) {
+            const container = document.getElementById('directionsList');
+            container.innerHTML = directions.map(d => 
+                `<span class="direction-tag" onclick="searchByDirection('${d.name}')">${d.name}</span>`
+            ).join('');
+        }
+
+        // 按研究方向搜索
+        async function searchByDirection(direction) {
+            document.getElementById('searchInput').value = direction;
+            doSearch();
+        }
+
+        // 执行搜索
+        async function doSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('请输入搜索内容');
+                return;
+            }
+
+            currentQuery = query;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('subDirections').style.display = 'none';
+            document.getElementById('suggestions').style.display = 'none';
+
+            try {
+                const response = await fetch(`/papers/smart-search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                renderResults(data);
+            } catch (error) {
+                console.error('搜索失败:', error);
+                alert('搜索失败，请稍后重试');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // 渲染搜索结果
+        function renderResults(data) {
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            if (data.sub_directions && data.sub_directions.length > 0) {
+                const subDirContainer = document.getElementById('subDirections');
+                const subDirList = document.getElementById('subDirectionsList');
+                subDirContainer.style.display = 'block';
+                subDirList.innerHTML = data.sub_directions.map(sub =>
+                    `<span class="sub-direction-tag" onclick="searchBySubDirection('${sub}')">${sub}</span>`
+                ).join('');
+            }
+
+            document.getElementById('resultsCount').textContent = `找到 ${data.total_count} 篇论文`;
+            
+            const papersList = document.getElementById('papersList');
+            
+            if (data.papers && data.papers.length > 0) {
+                papersList.innerHTML = data.papers.map(paper => renderPaperCard(paper)).join('');
+            } else {
+                papersList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>暂无相关论文，试试其他关键词</p>
+                        <p style="margin-top:10px;font-size:0.9rem;color:#999;">提示：运行爬虫来获取更多论文数据</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 渲染论文卡片
+        function renderPaperCard(paper) {
+            let authors = '未知作者';
+            try {
+                const authorsArray = JSON.parse(paper.authors || '[]');
+                authors = authorsArray.join(', ');
+            } catch (e) {
+                authors = paper.authors || '未知作者';
+            }
+
+            let categories = [];
+            try {
+                categories = JSON.parse(paper.categories || '[]');
+            } catch (e) {
+                categories = [];
+            }
+
+            return `
+                <div class="paper-card">
+                    <div class="paper-title">${escapeHtml(paper.title)}</div>
+                    <div class="paper-meta">
+                        <span>✍️ ${authors.substring(0, 100)}${authors.length > 100 ? '...' : ''}</span>
+                        <span>📅 ${paper.published_at ? new Date(paper.published_at).toLocaleDateString('zh-CN')}</span>
+                        ${categories.map(cat => `<span class="paper-tag">${cat}</span>`).join('')}
+                    </div>
+                    <div class="paper-links">
+                        <a href="${paper.source_url}" target="_blank" class="paper-link">🔗 arXiv 页面</a>
+                        ${paper.pdf_url ? `<a href="${paper.pdf_url}" target="_blank" class="paper-link">📄 PDF 下载</a>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 按子方向搜索
+        function searchBySubDirection(subDirection) {
+            const currentInput = document.getElementById('searchInput').value;
+            document.getElementById('searchInput').value = subDirection;
+            doSearch();
+        }
+
+        // 搜索输入事件
+        let debounceTimer;
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                showSuggestions(e.target.value);
+            }, 300);
+        });
+
+        // 显示搜索建议
+        async function showSuggestions(query) {
+            if (query.length < 1) {
+                document.getElementById('suggestions').style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/papers/search-suggestions?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.suggestions && data.suggestions.length > 0) {
+                    const suggestions = document.getElementById('suggestions');
+                    suggestions.style.display = 'block';
+                    suggestions.innerHTML = data.suggestions.map(s =>
+                        `<div class="suggestion-item" onclick="selectSuggestion('${s.text}')">
+                            <span style="color:#667eea;font-weight:500;">${s.type}:</span> ${s.text}
+                        </div>`
+                    ).join('');
+                } else {
+                    document.getElementById('suggestions').style.display = 'none';
+                }
+            } catch (e) {
+                console.error('获取搜索建议失败:', e);
+            }
+        }
+
+        // 选择搜索建议
+        function selectSuggestion(text) {
+            document.getElementById('searchInput').value = text;
+            document.getElementById('suggestions').style.display = 'none';
+            doSearch();
+        }
+
+        // 回车键搜索
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                doSearch();
+            }
+        });
+
+        // 初始化
+        loadDirections();
+    </script>
+</body>
+</html>
