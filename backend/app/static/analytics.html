@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spy Analytics - 数据可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e3a8a 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+        .header h1 { 
+            font-size: 2.5rem; 
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #a5b4fc, #c7d2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p { font-size: 1.1rem; opacity: 0.8; }
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #a5b4fc;
+            margin-bottom: 8px;
+        }
+        .stat-card .label {
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.7);
+        }
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .chart-card h3 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+        .chart-container {
+            height: 300px;
+        }
+        .keyword-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 20px;
+            min-height: 200px;
+        }
+        .keyword-tag {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            font-size: 0.9rem;
+            opacity: 0.9;
+            transition: all 0.3s;
+        }
+        .keyword-tag:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+        .author-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .author-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        .author-name {
+            color: white;
+            font-weight: 500;
+        }
+        .author-count {
+            background: linear-gradient(135deg, #10b981, #059669);
+            padding: 4px 12px;
+            border-radius: 12px;
+            color: white;
+            font-size: 0.85rem;
+        }
+        .refresh-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        }
+        .loading {
+            text-align: center;
+            color: white;
+            padding: 50px;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #a5b4fc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="refresh-btn" onclick="loadAllData()">🔄 刷新数据</button>
+        
+        <div class="header">
+            <h1>📊 数据分析与可视化</h1>
+            <p>arXiv 论文数据统计与趋势分析</p>
+        </div>
+
+        <div class="stats-cards" id="statsCards">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>加载中...</p>
+            </div>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-card">
+                <h3>📈 论文数量趋势（近30天）</h3>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>🥧 分类分布</h3>
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-card">
+                <h3>🏆 活跃作者 TOP 10</h3>
+                <div class="author-list" id="authorList">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>加载中...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>🔤 关键词云</h3>
+                <div class="keyword-cloud" id="keywordCloud">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>加载中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trendChart, categoryChart;
+
+        async function fetchData(url) {
+            const response = await fetch(url);
+            return await response.json();
+        }
+
+        async function loadSummary() {
+            try {
+                const data = await fetchData('/papers/stats/summary');
+                const cards = `
+                    <div class="stat-card">
+                        <div class="number">${data.total_papers.toLocaleString()}</div>
+                        <div class="label">📚 论文总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${data.recent_papers_7d.toLocaleString()}</div>
+                        <div class="label">📅 近7天新增</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${data.total_authors.toLocaleString()}</div>
+                        <div class="label">👥 作者总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${Object.keys(data.categories).length}</div>
+                        <div class="label">🏷️ 分类数量</div>
+                    </div>
+                `;
+                document.getElementById('statsCards').innerHTML = cards;
+            } catch (error) {
+                console.error('Failed to load summary:', error);
+            }
+        }
+
+        async function loadTrend() {
+            try {
+                const data = await fetchData('/papers/stats/trend?days=30');
+                const labels = data.trend.map(item => item.date);
+                const counts = data.trend.map(item => item.count);
+
+                if (trendChart) trendChart.destroy();
+                
+                const ctx = document.getElementById('trendChart').getContext('2d');
+                trendChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '论文数量',
+                            data: counts,
+                            borderColor: '#a5b4fc',
+                            backgroundColor: 'rgba(165, 180, 252, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#a5b4fc'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: 'rgba(255,255,255,0.7)', maxRotation: 45 }
+                            },
+                            y: {
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: 'rgba(255,255,255,0.7)' },
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to load trend:', error);
+            }
+        }
+
+        async function loadCategories() {
+            try {
+                const data = await fetchData('/papers/stats/categories');
+                const topCategories = data.categories.slice(0, 8);
+                const labels = topCategories.map(item => item.category);
+                const counts = topCategories.map(item => item.count);
+                const colors = [
+                    'rgba(165, 180, 252, 0.8)',
+                    'rgba(192, 132, 252, 0.8)',
+                    'rgba(232, 121, 249, 0.8)',
+                    'rgba(126, 34, 206, 0.8)',
+                    'rgba(99, 102, 241, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(14, 165, 233, 0.8)',
+                    'rgba(20, 184, 166, 0.8)'
+                ];
+
+                if (categoryChart) categoryChart.destroy();
+                
+                const ctx = document.getElementById('categoryChart').getContext('2d');
+                categoryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: counts,
+                            backgroundColor: colors,
+                            borderWidth: 2,
+                            borderColor: 'rgba(255,255,255,0.2)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: 'rgba(255,255,255,0.8)',
+                                    padding: 15,
+                                    usePointStyle: true
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        async function loadAuthors() {
+            try {
+                const data = await fetchData('/papers/stats/authors?limit=10');
+                let html = '';
+                data.top_authors.forEach((author, index) => {
+                    const rankColors = ['#fbbf24', '#9ca3af', '#d97706'];
+                    const rankColor = index < 3 ? rankColors[index] : '#6366f1';
+                    html += `
+                        <div class="author-item">
+                            <span class="author-name">${author.author}</span>
+                            <span class="author-count" style="background: ${rankColor}">${author.paper_count} 篇</span>
+                        </div>
+                    `;
+                });
+                document.getElementById('authorList').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load authors:', error);
+            }
+        }
+
+        async function loadKeywords() {
+            try {
+                const data = await fetchData('/papers/stats/keywords?limit=30');
+                let html = '';
+                const maxCount = Math.max(...data.top_keywords.map(k => k.count));
+                data.top_keywords.forEach(keyword => {
+                    const size = 0.8 + (keyword.count / maxCount) * 0.6;
+                    html += `<span class="keyword-tag" style="font-size: ${size}rem;">${keyword.keyword}</span>`;
+                });
+                document.getElementById('keywordCloud').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load keywords:', error);
+            }
+        }
+
+        async function loadAllData() {
+            await Promise.all([
+                loadSummary(),
+                loadTrend(),
+                loadCategories(),
+                loadAuthors(),
+                loadKeywords()
+            ]);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadAllData);
+    </script>
+</body>
+</html>

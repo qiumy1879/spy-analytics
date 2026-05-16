@@ -13,7 +13,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Spy Analytics API",
     description="arXiv 论文分析平台 API",
-    version="1.3.0",
+    version="1.5.0",
 )
 
 app.add_middleware(
@@ -58,6 +58,16 @@ async def simple_page():
     if os.path.exists(simple_path):
         return FileResponse(simple_path)
     return {"message": "Simple page not found"}
+
+
+@app.get("/analytics")
+async def analytics_page():
+    """数据分析可视化页面"""
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    analytics_path = os.path.join(static_dir, "analytics.html")
+    if os.path.exists(analytics_path):
+        return FileResponse(analytics_path)
+    return {"message": "Analytics page not found"}
 
 
 # 包含路由（最后加载，避免覆盖）

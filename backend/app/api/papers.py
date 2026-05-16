@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from sqlalchemy import func, extract
+from typing import List, Optional, Dict
 from app.models.paper import Paper
 from app.schemas.paper import PaperResponse, PaperCreate
 from app.core.database import get_db
 from app.smart_search import parse_chinese_query, get_search_suggestions, RESEARCH_DIRECTIONS
+from datetime import datetime, timedelta
 import json
+import re
+from collections import Counter
 
 router = APIRouter(
     prefix="/papers",
@@ -109,9 +113,193 @@ def get_summary_stats(db: Session = Depends(get_db)):
             except:
                 pass
     
+    # 统计最近一周的数据
+    one_week_ago = datetime.now() - timedelta(days=7)
+    recent_papers = db.query(Paper).filter(Paper.published >= one_week_ago).count()
+    
+    # 统计作者数量（去重）
+    all_authors = set()
+    for paper in all_papers:
+        if paper.authors:
+            try:
+                authors = json.loads(paper.authors)
+                for author in authors:
+                    all_authors.add(author.strip())
+            except:
+                pass
+    
     return {
         "total_papers": total_papers,
+        "recent_papers_7d": recent_papers,
+        "total_authors": len(all_authors),
         "categories": categories_count
+    }
+
+
+@router.get("/stats/trend")
+def get_paper_trend(
+    days: int = Query(30, description="查询天数"),
+    db: Session = Depends(get_db)
+):
+    """获取论文数量时间趋势"""
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
+    results = db.query(
+        func.date(Paper.published).label('date'),
+        func.count(Paper.id).label('count')
+    ).filter(
+        Paper.published >= start_date
+    ).group_by(
+        func.date(Paper.published)
+    ).order_by(
+        func.date(Paper.published)
+    ).all()
+    
+    trend_data = []
+    for date, count in results:
+        trend_data.append({
+            "date": date.strftime("%Y-%m-%d"),
+            "count": count
+        })
+    
+    return {
+        "trend": trend_data,
+        "start_date": start_date.strftime("%Y-%m-%d"),
+        "end_date": end_date.strftime("%Y-%m-%d")
+    }
+
+
+@router.get("/stats/categories")
+def get_category_stats(db: Session = Depends(get_db)):
+    """获取分类统计详情"""
+    all_papers = db.query(Paper).all()
+    total_papers = len(all_papers)
+    
+    category_stats = {}
+    
+    for paper in all_papers:
+        if paper.categories:
+            try:
+                cats = json.loads(paper.categories)
+                for cat in cats:
+                    if cat not in category_stats:
+                        category_stats[cat] = {
+                            "count": 0,
+                            "papers": []
+                        }
+                    category_stats[cat]["count"] += 1
+                    category_stats[cat]["papers"].append({
+                        "id": paper.paper_id,
+                        "title": paper.title,
+                        "published": paper.published.strftime("%Y-%m-%d") if paper.published else None
+                    })
+            except:
+                pass
+    
+    sorted_categories = []
+    for cat, stats in category_stats.items():
+        sorted_categories.append({
+            "category": cat,
+            "count": stats["count"],
+            "percentage": round(stats["count"] / total_papers * 100, 2),
+            "sample_papers": stats["papers"][:5]
+        })
+    
+    sorted_categories.sort(key=lambda x: x["count"], reverse=True)
+    
+    return {
+        "total_categories": len(category_stats),
+        "categories": sorted_categories
+    }
+
+
+@router.get("/stats/authors")
+def get_author_stats(
+    limit: int = Query(20, description="返回作者数量限制"),
+    db: Session = Depends(get_db)
+):
+    """获取作者统计（按论文数量排名）"""
+    all_papers = db.query(Paper).all()
+    
+    author_counter = Counter()
+    author_papers = {}
+    
+    for paper in all_papers:
+        if paper.authors:
+            try:
+                authors = json.loads(paper.authors)
+                for author in authors:
+                    author = author.strip()
+                    author_counter[author] += 1
+                    if author not in author_papers:
+                        author_papers[author] = []
+                    author_papers[author].append({
+                        "id": paper.paper_id,
+                        "title": paper.title,
+                        "published": paper.published.strftime("%Y-%m-%d") if paper.published else None
+                    })
+            except:
+                pass
+    
+    top_authors = []
+    for author, count in author_counter.most_common(limit):
+        top_authors.append({
+            "author": author,
+            "paper_count": count,
+            "sample_papers": author_papers[author][:3]
+        })
+    
+    return {
+        "total_authors": len(author_counter),
+        "top_authors": top_authors
+    }
+
+
+@router.get("/stats/keywords")
+def get_keyword_stats(
+    limit: int = Query(50, description="返回关键词数量限制"),
+    db: Session = Depends(get_db)
+):
+    """获取关键词统计（从标题中提取）"""
+    all_papers = db.query(Paper).all()
+    
+    common_keywords = [
+        "learning", "deep", "neural", "network", "model", "based",
+        "using", "method", "approach", "system", "algorithm", "data",
+        "analysis", "framework", "application", "research", "study",
+        "development", "design", "implementation", "evaluation",
+        "optimization", "performance", "efficient", "novel", "new",
+        "improved", "real-time", "scalable", "robust", "accurate",
+        "AI", "ML", "DL", "NLP", "CV", "RL", "GAN", "transformer",
+        "attention", "graph", "reinforcement", "supervised", "unsupervised",
+        "semi-supervised", "self-supervised", "few-shot", "zero-shot",
+        "fine-tuning", "pre-training", "transfer", "federated", "distributed",
+        "embedding", "representation", "classification", "detection",
+        "segmentation", "generation", "prediction", "recommendation",
+        "clustering", "anomaly", "tracking", "matching", "retrieval",
+        "summarization", "translation", "question", "answering", "dialogue"
+    ]
+    
+    keyword_counter = Counter()
+    
+    for paper in all_papers:
+        if paper.title:
+            words = re.findall(r'[a-zA-Z][a-zA-Z0-9]*', paper.title.lower())
+            for word in words:
+                if len(word) >= 3 and word in common_keywords:
+                    keyword_counter[word] += 1
+    
+    top_keywords = []
+    for keyword, count in keyword_counter.most_common(limit):
+        top_keywords.append({
+            "keyword": keyword,
+            "count": count
+        })
+    
+    return {
+        "total_keywords": len(keyword_counter),
+        "top_keywords": top_keywords
     }
 
 
