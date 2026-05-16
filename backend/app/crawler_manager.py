@@ -6,6 +6,7 @@ import subprocess
 import threading
 import queue
 import os
+import sys
 from typing import Dict, Optional
 from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks
@@ -48,12 +49,15 @@ def run_crawler_process(years: float, categories: str, max_results: int):
     }
     
     try:
+        # 获取项目根目录
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        
         # 构建命令
         cmd = [
-            "python", "-m", "scrapy", "crawl", "arxiv",
-            "-a", f"years={years}",
-            "-a", f"categories={categories}",
-            "-a", f"max_results={max_results}"
+            sys.executable, "fetch_papers.py",
+            "--categories", categories,
+            "--days", str(int(years * 365)),
+            "--max", str(max_results)
         ]
         
         crawler_status["logs"].append("📋 开始爬取任务启动...")
@@ -61,7 +65,7 @@ def run_crawler_process(years: float, categories: str, max_results: int):
         # 运行命令，捕获输出
         process = subprocess.Popen(
             cmd,
-            cwd="/workspace",
+            cwd=project_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
