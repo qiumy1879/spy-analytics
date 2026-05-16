@@ -82,13 +82,13 @@ def fetch_papers(categories=['cs.AI', 'cs.LG', 'cs.RO', 'cs.CV'], days_back=7, m
                     paper_id=result.entry_id,
                     title=result.title,
                     authors=json.dumps([str(a) for a in result.authors]),
-                    summary=result.summary,
                     categories=json.dumps(result.categories),
                     pdf_url=result.pdf_url,
-                    published=result.published.replace(tzinfo=None) if result.published else None,
-                    updated=result.updated.replace(tzinfo=None) if result.updated else None,
+                    published_at=result.published.replace(tzinfo=None) if result.published else None,
+                    last_updated=result.updated.replace(tzinfo=None) if result.updated else None,
                     journal_ref=result.journal_ref,
-                    doi=result.doi
+                    source="arxiv",
+                    source_url=result.entry_id
                 )
                 
                 db.add(paper)
