@@ -14,14 +14,31 @@ from backend.app.models.paper import Paper
 
 def safe_print(*args, **kwargs):
     """安全打印，处理Unicode编码问题"""
+    # 先处理所有字符，确保安全
+    text = ' '.join(str(arg) for arg in args)
+    
+    # 替换emoji为ASCII字符
+    emoji_map = {
+        '⏭️': '[SKIP]',
+        '✅': '[OK]', 
+        '❌': '[ERR]',
+        '📊': '[STAT]',
+        '🚀': '[START]',
+        '📁': '[CAT]',
+        '📅': '[DATE]',
+        '🔢': '[NUM]',
+        '\U0001f680': '[START]'
+    }
+    for emoji, replacement in emoji_map.items():
+        text = text.replace(emoji, replacement)
+    
+    # 使用错误处理输出
     try:
-        print(*args, **kwargs)
-    except UnicodeEncodeError:
-        # 使用ASCII字符替代
-        text = ' '.join(str(arg) for arg in args)
-        # 替换emoji为ASCII字符
-        text = text.replace('⏭️', '[SKIP]').replace('✅', '[OK]').replace('❌', '[ERR]').replace('📊', '[STAT]')
         print(text, **kwargs)
+    except UnicodeEncodeError:
+        # 强制使用ASCII输出
+        ascii_text = text.encode('ascii', errors='replace').decode('ascii')
+        print(ascii_text, **kwargs)
 
 def fetch_papers(categories=['cs.AI', 'cs.LG', 'cs.RO', 'cs.CV'], days_back=7, max_results=20):
     """采集 arXiv 论文"""
