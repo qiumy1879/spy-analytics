@@ -115,7 +115,7 @@ def get_summary_stats(db: Session = Depends(get_db)):
     
     # 统计最近一周的数据
     one_week_ago = datetime.now() - timedelta(days=7)
-    recent_papers = db.query(Paper).filter(Paper.published >= one_week_ago).count()
+    recent_papers = db.query(Paper).filter(Paper.published_at >= one_week_ago).count()
     
     # 统计作者数量（去重）
     all_authors = set()
