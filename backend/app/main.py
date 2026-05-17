@@ -13,7 +13,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Spy Analytics API",
     description="arXiv 论文分析平台 API",
-    version="1.5.0",
+    version="1.6.0",
 )
 
 app.add_middleware(

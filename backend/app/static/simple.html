@@ -118,6 +118,39 @@
         .panel { display: none; }
         .panel.active { display: block; }
         .empty { text-align: center; padding: 40px; color: #999; }
+        .sub-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
+        .sub-tab {
+            padding: 8px 16px;
+            background: #f1f5f9;
+            color: #475569;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .sub-tab:hover { background: #e2e8f0; }
+        .sub-tab.active { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+        }
+        .stats-panel { display: none; }
+        .stats-panel.active { display: block; }
+        .category-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .category-name-cn {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 0.95rem;
+        }
+        .category-name-code {
+            color: #64748b;
+            font-size: 0.8rem;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -135,6 +168,7 @@
         <div class="tabs">
             <button class="tab active" onclick="showPanel('search')">🔍 搜索论文</button>
             <button class="tab" onclick="showPanel('crawler')">🕷️ 数据采集</button>
+            <button class="tab" onclick="showPanel('manage')">⚙️ 数据管理</button>
         </div>
 
         <!-- 搜索面板 -->
@@ -180,6 +214,41 @@
                 </div>
             </div>
         </div>
+
+        <!-- 数据管理面板 -->
+        <div id="manage-panel" class="panel">
+            <div class="card">
+                <h2>数据库管理</h2>
+                
+                <!-- 统计卡片 -->
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="loadStats()">📊 查看统计</button>
+                </div>
+                
+                <div id="dbStats" style="margin-bottom: 20px;"></div>
+                
+                <!-- 分类与关键词统计标签页 -->
+                <div style="margin-top: 20px; border-top: 2px solid #e0e0e0; padding-top: 20px;">
+                    <h3 style="margin-bottom: 15px; color: #334;">📊 详细统计</h3>
+                    <div class="sub-tabs">
+                        <button class="sub-tab active" onclick="showStatsPanel('category')">📂 分类统计</button>
+                        <button class="sub-tab" onclick="showStatsPanel('keyword')">🔤 关键词统计</button>
+                    </div>
+                    <div id="category-stats-panel" class="stats-panel active"></div>
+                    <div id="keyword-stats-panel" class="stats-panel"></div>
+                </div>
+                
+                <div style="border-top: 2px solid #e0e0e0; padding-top: 20px; margin-top: 20px;">
+                    <h3 style="color: #dc2626; margin-bottom: 15px;">⚠️ 危险操作</h3>
+                    <p style="color: #666; margin-bottom: 15px;">此操作将删除所有论文数据，且不可恢复！</p>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="confirmClear">
+                        <label for="confirmClear">我确认要删除所有数据</label>
+                    </div>
+                    <button class="btn btn-danger" style="background: #dc2626; color: white; margin-top: 15px;" onclick="clearAllPapers()">🗑️ 一键清除数据库</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -188,7 +257,24 @@
         // 页面加载
         document.addEventListener('DOMContentLoaded', function() {
             loadCategories();
+            // 自动加载分类和关键词统计
+            loadCategoryStats();
+            loadKeywordStats();
         });
+        
+        // 显示统计面板
+        function showStatsPanel(type) {
+            document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.stats-panel').forEach(p => p.classList.remove('active'));
+            
+            if (type === 'category') {
+                document.querySelectorAll('.sub-tab')[0].classList.add('active');
+                document.getElementById('category-stats-panel').classList.add('active');
+            } else {
+                document.querySelectorAll('.sub-tab')[1].classList.add('active');
+                document.getElementById('keyword-stats-panel').classList.add('active');
+            }
+        }
 
         // 显示面板
         function showPanel(name) {
@@ -360,6 +446,165 @@
         document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') searchPapers();
         });
+
+        // 加载统计
+        async function loadStats() {
+            const statsEl = document.getElementById('dbStats');
+            statsEl.innerHTML = '<div class="empty">加载中...</div>';
+            
+            try {
+                const res = await fetch('/papers/stats/summary');
+                const data = await res.json();
+                
+                statsEl.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                        <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #0369a1;">${data.total_papers}</div>
+                            <div style="color: #666;">论文总数</div>
+                        </div>
+                        <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #15803d;">${data.recent_papers_7d}</div>
+                            <div style="color: #666;">近7天新增</div>
+                        </div>
+                        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #b45309;">${data.total_authors}</div>
+                            <div style="color: #666;">作者总数</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <h4 style="margin-bottom: 10px;">分类统计</h4>
+                        <div style="max-height: 200px; overflow-y: auto;">
+                            ${Object.entries(data.categories).sort((a,b) => b[1]-a[1]).slice(0, 10).map(([cat, count]) => 
+                                `<div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;">
+                                    <span>${cat}</span>
+                                    <span style="color: #667eea; font-weight: bold;">${count}</span>
+                                </div>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+            } catch(e) {
+                statsEl.innerHTML = '<div class="empty">加载失败</div>';
+            }
+        }
+
+        // 清除所有论文
+        async function clearAllPapers() {
+            const confirm = document.getElementById('confirmClear').checked;
+            
+            if (!confirm) {
+                alert('请先勾选"我确认要删除所有数据"');
+                return;
+            }
+            
+            if (!confirm('确定要删除所有论文数据吗？此操作不可恢复！')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch('/papers/clear-all?confirm=true', { method: 'POST' });
+                const data = await res.json();
+                
+                alert(data.message);
+                loadStats();
+            } catch(e) {
+                alert('清除失败');
+            }
+        }
+
+        // 加载分类统计
+        async function loadCategoryStats() {
+            const statsEl = document.getElementById('category-stats-panel');
+            statsEl.innerHTML = '<div class="empty">加载中...</div>';
+            
+            try {
+                const res = await fetch('/papers/stats/categories');
+                const data = await res.json();
+                
+                if (data.categories && data.categories.length > 0) {
+                    statsEl.innerHTML = `
+                        <h4 style="margin-bottom: 15px;">📂 分类统计 TOP 15</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;">
+                            ${data.categories.slice(0, 15).map(item => `
+                                <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                    <div class="category-label">
+                                        <span class="category-name-cn">${item.category_name || item.category}</span>
+                                        <span class="category-name-code">${item.category}</span>
+                                    </div>
+                                    <div style="font-size: 1.8rem; font-weight: bold; color: #667eea; margin: 10px 0;">${item.count}</div>
+                                    <div style="color: #666; font-size: 0.85rem;">篇论文 (${item.percentage}%)</div>
+                                    <button class="btn btn-danger" style="background: #ef4444; font-size: 0.8rem; padding: 8px 16px; margin-top: 12px; width: 100%;" 
+                                        onclick="deleteCategory('${item.category}', ${item.count})">🗑️ 删除此类</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    statsEl.innerHTML = '<div class="empty">暂无分类数据</div>';
+                }
+            } catch(e) {
+                statsEl.innerHTML = '<div class="empty">加载失败: ' + e.message + '</div>';
+            }
+        }
+
+        // 加载关键词统计
+        async function loadKeywordStats() {
+            const statsEl = document.getElementById('keyword-stats-panel');
+            statsEl.innerHTML = '<div class="empty">加载中...</div>';
+            
+            try {
+                const res = await fetch('/papers/stats/keywords');
+                const data = await res.json();
+                
+                if (data.top_keywords && data.top_keywords.length > 0) {
+                    statsEl.innerHTML = `
+                        <h4 style="margin-bottom: 15px;">🔤 热门关键词 TOP 30</h4>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            ${data.top_keywords.slice(0, 30).map((item, idx) => `
+                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 25px; font-size: ${Math.max(0.85, 1.3 - idx*0.015)}rem;">
+                                    ${item.keyword} <span style="opacity: 0.8;">(${item.count})</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    statsEl.innerHTML = '<div class="empty">暂无关键词数据</div>';
+                }
+            } catch(e) {
+                statsEl.innerHTML = '<div class="empty">加载失败: ' + e.message + '</div>';
+            }
+        }
+
+        // 按分类删除
+        async function deleteCategory(category, count) {
+            // 获取分类中文名（通过重新请求API）
+            let categoryName = category;
+            try {
+                const res = await fetch('/papers/stats/categories');
+                const data = await res.json();
+                const found = data.categories.find(c => c.category === category);
+                if (found && found.category_name) {
+                    categoryName = `${found.category_name} (${category})`;
+                }
+            } catch(e) {}
+            
+            if (!confirm(`确定要删除 ${categoryName} 分类下的 ${count} 篇论文吗？`)) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/papers/delete-by-category?category=${encodeURIComponent(category)}`, { 
+                    method: 'POST' 
+                });
+                const data = await res.json();
+                
+                alert(data.message);
+                loadCategoryStats();
+                loadStats();
+            } catch(e) {
+                alert('删除失败');
+            }
+        }
     </script>
 </body>
 </html>

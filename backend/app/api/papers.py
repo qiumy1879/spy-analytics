@@ -11,6 +11,62 @@ import json
 import re
 from collections import Counter
 
+# 分类到中文名称的完整映射
+CATEGORY_NAMES = {
+    "cs.AI": "人工智能",
+    "cs.LG": "机器学习",
+    "cs.CV": "计算机视觉",
+    "cs.CL": "自然语言处理",
+    "cs.RO": "机器人学",
+    "cs.NE": "神经网络",
+    "cs.SD": "声音",
+    "cs.MM": "多媒体",
+    "cs.GR": "图形学",
+    "cs.OS": "操作系统",
+    "cs.DB": "数据库",
+    "cs.PL": "编程语言",
+    "cs.SE": "软件工程",
+    "cs.CY": "计算机与社会",
+    "cs.CR": "密码学",
+    "cs.IR": "信息检索",
+    "cs.HC": "人机交互",
+    "cs.ET": "新兴技术",
+    "cs.IT": "信息论",
+    "cs.MA": "多智能体",
+    "cs.DC": "分布式计算",
+    "cs.AR": "硬件架构",
+    "cs.CE": "计算工程",
+    "cs.DL": "数字图书馆",
+    "cs.DS": "数据结构",
+    "cs.FL": "形式语言",
+    "cs.GT": "计算机博弈",
+    "cs.NI": "网络与互联网",
+    "cs.PF": "性能",
+    "cs.SI": "社交网络",
+    "cs.SC": "符号计算",
+    "stat.ML": "统计学-机器学习",
+    "stat.AP": "统计学-应用",
+    "stat.ME": "统计学-方法论",
+    "math.NA": "数学-数值分析",
+    "math.OC": "数学-优化与控制",
+    "math.DS": "数学-动力系统",
+    "math.CT": "数学-范畴论",
+    "math.FA": "数学-泛函分析",
+    "math.LO": "数学-逻辑",
+    "eess.SP": "信号处理",
+    "eess.AS": "音频处理",
+    "eess.SY": "系统与控制",
+    "eess.IV": "图像处理",
+    "physics.comp-ph": "计算物理",
+    "physics.plasm-ph": "等离子体物理",
+    "cond-mat.mtrl-sci": "材料科学",
+    "astro-ph.IM": "天文学-仪器",
+    "q-bio.QM": "定量生物学-方法",
+    "q-bio.NC": "定量生物学-神经",
+    "quant-ph": "量子物理",
+    "econ.TH": "经济学-理论"
+}
+
 router = APIRouter(
     prefix="/papers",
     tags=["papers"],
@@ -145,23 +201,20 @@ def get_paper_trend(
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
     
-    results = db.query(
-        func.date(Paper.published).label('date'),
-        func.count(Paper.id).label('count')
-    ).filter(
-        Paper.published >= start_date
-    ).group_by(
-        func.date(Paper.published)
-    ).order_by(
-        func.date(Paper.published)
+    papers = db.query(Paper).filter(
+        Paper.published_at >= start_date
     ).all()
     
-    trend_data = []
-    for date, count in results:
-        trend_data.append({
-            "date": date.strftime("%Y-%m-%d"),
-            "count": count
-        })
+    trend_dict = {}
+    for paper in papers:
+        if paper.published_at:
+            date_str = paper.published_at.strftime("%Y-%m-%d")
+            trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
+    
+    trend_data = [
+        {"date": date, "count": count}
+        for date, count in sorted(trend_dict.items())
+    ]
     
     return {
         "trend": trend_data,
@@ -192,7 +245,7 @@ def get_category_stats(db: Session = Depends(get_db)):
                     category_stats[cat]["papers"].append({
                         "id": paper.paper_id,
                         "title": paper.title,
-                        "published": paper.published.strftime("%Y-%m-%d") if paper.published else None
+                        "published": paper.published_at.strftime("%Y-%m-%d") if paper.published_at else None
                     })
             except:
                 pass
@@ -201,6 +254,7 @@ def get_category_stats(db: Session = Depends(get_db)):
     for cat, stats in category_stats.items():
         sorted_categories.append({
             "category": cat,
+            "category_name": CATEGORY_NAMES.get(cat, cat),
             "count": stats["count"],
             "percentage": round(stats["count"] / total_papers * 100, 2),
             "sample_papers": stats["papers"][:5]
@@ -237,7 +291,7 @@ def get_author_stats(
                     author_papers[author].append({
                         "id": paper.paper_id,
                         "title": paper.title,
-                        "published": paper.published.strftime("%Y-%m-%d") if paper.published else None
+                        "published": paper.published_at.strftime("%Y-%m-%d") if paper.published_at else None
                     })
             except:
                 pass
@@ -427,3 +481,51 @@ def delete_paper(paper_id: str, db: Session = Depends(get_db)):
     db.delete(db_paper)
     db.commit()
     return {"message": "Paper deleted successfully"}
+
+
+@router.post("/clear-all", tags=["papers"])
+def clear_all_papers(
+    confirm: bool = Query(False, description="必须设置为 true 才能执行删除操作"),
+    db: Session = Depends(get_db)
+):
+    """清除所有论文数据（危险操作，需要确认参数）"""
+    if not confirm:
+        raise HTTPException(
+            status_code=400, 
+            detail="必须设置 confirm=true 才能执行此操作"
+        )
+    
+    deleted_count = db.query(Paper).delete()
+    db.commit()
+    
+    return {
+        "message": f"已删除 {deleted_count} 篇论文",
+        "deleted_count": deleted_count
+    }
+
+
+@router.post("/delete-by-category")
+def delete_by_category(
+    category: str = Query(..., description="要删除的分类代码，如 cs.AI"),
+    db: Session = Depends(get_db)
+):
+    """删除指定分类下的所有论文"""
+    papers = db.query(Paper).all()
+    deleted_count = 0
+    
+    for paper in papers:
+        if paper.categories:
+            try:
+                cats = json.loads(paper.categories)
+                if category in cats:
+                    db.delete(paper)
+                    deleted_count += 1
+            except:
+                pass
+    
+    db.commit()
+    
+    return {
+        "message": f"已删除 {deleted_count} 篇 {category} 分类论文",
+        "deleted_count": deleted_count
+    }
