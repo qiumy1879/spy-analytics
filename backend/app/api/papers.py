@@ -198,53 +198,26 @@ def get_paper_trend(
     category: Optional[str] = Query(None, description="按分类筛选，如 cs.AI"),
     db: Session = Depends(get_db)
 ):
-    """获取论文数量时间趋势（从arXiv直接获取，反映真实上传趋势）"""
-    import arxiv
+    """获取论文数量时间趋势（统计用户已爬取论文的发布时间分布）"""
     
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
     
-    # 构建查询 - 使用arxiv.Client代替已弃用的Search
+    # 从本地数据库获取论文
+    papers = db.query(Paper).filter(Paper.published_at >= start_date)
+    if category:
+        papers = papers.filter(Paper.categories.contains(category))
+    papers = papers.all()
+    
+    # 统计每天的论文数量
     trend_dict = {}
     total_count = 0
     
-    try:
-        client = arxiv.Client()
-        
-        # 构建查询条件
-        if category:
-            query_str = f"cat:{category}"
-        else:
-            # 如果没有指定分类，使用一个通用查询避免HTTP 400错误
-            query_str = "cat:cs.AI OR cat:cs.LG OR cat:cs.CV OR cat:stat.ML"
-        
-        search = arxiv.Search(
-            query=query_str,
-            max_results=1000,
-            sort_by=arxiv.SortCriterion.SubmittedDate,
-            sort_order=arxiv.SortOrder.Descending
-        )
-        
-        for result in client.results(search):
-            published_date = result.published.replace(tzinfo=None)
-            if published_date >= start_date:
-                date_str = published_date.strftime("%Y-%m-%d")
-                trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
-                total_count += 1
-                
-    except Exception as e:
-        # 如果 arXiv API 调用失败，回退到本地数据库统计
-        print(f"arXiv API失败，使用本地数据库: {str(e)}")
-        papers = db.query(Paper).filter(Paper.published_at >= start_date)
-        if category:
-            papers = papers.filter(Paper.categories.contains(category))
-        papers = papers.all()
-        
-        for paper in papers:
-            if paper.published_at:
-                date_str = paper.published_at.strftime("%Y-%m-%d")
-                trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
-                total_count += 1
+    for paper in papers:
+        if paper.published_at:
+            date_str = paper.published_at.strftime("%Y-%m-%d")
+            trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
+            total_count += 1
     
     # 填充缺失的日期（确保每天都有数据）
     current_date = start_date
@@ -264,8 +237,7 @@ def get_paper_trend(
         "start_date": start_date.strftime("%Y-%m-%d"),
         "end_date": end_date.strftime("%Y-%m-%d"),
         "total_count": total_count,
-        "category": category or "all",
-        "source": "arxiv" if total_count > 0 else "local"
+        "category": category or "all"
     }
 
 
