@@ -198,25 +198,46 @@ def get_paper_trend(
     category: Optional[str] = Query(None, description="按分类筛选，如 cs.AI"),
     db: Session = Depends(get_db)
 ):
-    """获取论文数量时间趋势（优先使用本地数据库统计）"""
+    """获取论文数量时间趋势（从arXiv直接获取，反映真实上传趋势）"""
+    import arxiv
     
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
     
-    # 优先从本地数据库获取统计
+    # 构建查询
+    query_str = ""
+    if category:
+        query_str = f"cat:{category}"
+    
+    search = arxiv.Search(
+        query=query_str,
+        max_results=1000,
+        sort_by=arxiv.SortCriterion.SubmittedDate,
+        sort_order=arxiv.SortOrder.Descending
+    )
+    
     trend_dict = {}
     total_count = 0
     
-    papers = db.query(Paper).filter(Paper.published_at >= start_date)
-    if category:
-        papers = papers.filter(Paper.categories.contains(category))
-    papers = papers.all()
-    
-    for paper in papers:
-        if paper.published_at:
-            date_str = paper.published_at.strftime("%Y-%m-%d")
-            trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
-            total_count += 1
+    try:
+        for result in search.results():
+            published_date = result.published.replace(tzinfo=None)
+            if published_date >= start_date:
+                date_str = published_date.strftime("%Y-%m-%d")
+                trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
+                total_count += 1
+    except Exception as e:
+        # 如果 arXiv API 调用失败，回退到本地数据库统计
+        papers = db.query(Paper).filter(Paper.published_at >= start_date)
+        if category:
+            papers = papers.filter(Paper.categories.contains(category))
+        papers = papers.all()
+        
+        for paper in papers:
+            if paper.published_at:
+                date_str = paper.published_at.strftime("%Y-%m-%d")
+                trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
+                total_count += 1
     
     # 填充缺失的日期（确保每天都有数据）
     current_date = start_date

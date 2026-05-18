@@ -151,6 +151,77 @@
             font-size: 0.8rem;
             font-family: monospace;
         }
+        .accordion-item {
+            margin-bottom: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .accordion-header {
+            background: #f8fafc;
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .accordion-header:hover {
+            background: #f1f5f9;
+        }
+        .accordion-header.active {
+            background: #e0f2fe;
+        }
+        .accordion-title {
+            font-weight: 600;
+            color: #334155;
+        }
+        .accordion-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s;
+        }
+        .accordion-header.active .accordion-icon {
+            transform: rotate(180deg);
+        }
+        .accordion-content {
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+        }
+        .accordion-content.active {
+            padding: 20px;
+            max-height: 1000px;
+        }
+        .option-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .option-tab {
+            padding: 10px 20px;
+            background: #f1f5f9;
+            color: #475569;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+        .option-tab:hover {
+            background: #e2e8f0;
+        }
+        .option-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .option-panel {
+            display: none;
+        }
+        .option-panel.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -199,12 +270,44 @@
                     <input type="number" id="maxResults" value="50" min="10" max="500">
                 </div>
                 
-                <div class="input-group">
-                    <label>选择研究方向：</label>
-                    <div id="categories" class="checkbox-group"></div>
+                <div style="margin-top: 20px;">
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span class="accordion-title">🎯 方式一：选择中文大类</span>
+                            <span class="accordion-icon">▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <p style="color: #666; font-size: 0.9rem; margin-bottom: 10px;">点击选择感兴趣的研究领域：</p>
+                            <div id="groups" class="checkbox-group"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span class="accordion-title">⌨️ 方式二：手动输入关键词</span>
+                            <span class="accordion-icon">▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <p style="color: #666; font-size: 0.9rem; margin-bottom: 10px;">输入中文大类名称（多个用逗号分隔）：</p>
+                            <div class="input-group" style="margin-bottom: 10px;">
+                                <input type="text" id="customGroups" placeholder="例如：人工智能,医疗健康,数据科学">
+                            </div>
+                            <p style="color: #999; font-size: 0.85rem;">支持的大类：人工智能、计算机视觉、自然语言处理、机器人学、医疗健康、数据科学、软件工程、网络安全、图形学与多媒体、分布式计算、数学与统计、物理学、信号处理、材料科学、天文学、经济学</p>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span class="accordion-title">📋 方式三：选择具体分类（高级）</span>
+                            <span class="accordion-icon">▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <div id="categories" class="checkbox-group"></div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div style="display: flex; align-items: center;">
+                <div style="display: flex; align-items: center; margin-top: 20px;">
                     <button id="startBtn" class="btn btn-success" onclick="startCrawler()">🚀 开始爬取</button>
                     <span id="status" class="status idle">⏸️ 空闲</span>
                 </div>
@@ -220,22 +323,26 @@
             <div class="card">
                 <h2>数据库管理</h2>
                 
-                <!-- 统计卡片 -->
-                <div style="margin-bottom: 20px;">
-                    <button class="btn btn-primary" onclick="loadStats()">📊 查看统计</button>
+                <!-- 统计功能选项卡 -->
+                <div class="option-tabs">
+                    <button class="option-tab active" onclick="showManagePanel('summary')">📊 总数统计</button>
+                    <button class="option-tab" onclick="showManagePanel('category')">📂 分类统计</button>
+                    <button class="option-tab" onclick="showManagePanel('keyword')">🔤 关键词统计</button>
                 </div>
                 
-                <div id="dbStats" style="margin-bottom: 20px;"></div>
-                
-                <!-- 分类与关键词统计标签页 -->
-                <div style="margin-top: 20px; border-top: 2px solid #e0e0e0; padding-top: 20px;">
-                    <h3 style="margin-bottom: 15px; color: #334;">📊 详细统计</h3>
-                    <div class="sub-tabs">
-                        <button class="sub-tab active" onclick="showStatsPanel('category')">📂 分类统计</button>
-                        <button class="sub-tab" onclick="showStatsPanel('keyword')">🔤 关键词统计</button>
+                <div id="summary-panel" class="option-panel active">
+                    <div style="margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="loadStats()">🔄 刷新统计</button>
                     </div>
-                    <div id="category-stats-panel" class="stats-panel active"></div>
-                    <div id="keyword-stats-panel" class="stats-panel"></div>
+                    <div id="dbStats"></div>
+                </div>
+                
+                <div id="category-panel" class="option-panel">
+                    <div id="category-stats-panel"></div>
+                </div>
+                
+                <div id="keyword-panel" class="option-panel">
+                    <div id="keyword-stats-panel"></div>
                 </div>
                 
                 <div style="border-top: 2px solid #e0e0e0; padding-top: 20px; margin-top: 20px;">
@@ -254,28 +361,54 @@
     <script>
         let logInterval = null;
 
+        // 折叠面板切换
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            const isActive = header.classList.contains('active');
+            
+            // 关闭所有其他折叠面板
+            document.querySelectorAll('.accordion-header').forEach(h => {
+                h.classList.remove('active');
+                h.nextElementSibling.classList.remove('active');
+            });
+            
+            // 如果当前没打开，则打开它
+            if (!isActive) {
+                header.classList.add('active');
+                content.classList.add('active');
+            }
+        }
+
+        // 显示数据管理面板
+        function showManagePanel(type) {
+            document.querySelectorAll('.option-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.option-panel').forEach(p => p.classList.remove('active'));
+            
+            if (type === 'summary') {
+                document.querySelectorAll('.option-tab')[0].classList.add('active');
+                document.getElementById('summary-panel').classList.add('active');
+                loadStats();
+            } else if (type === 'category') {
+                document.querySelectorAll('.option-tab')[1].classList.add('active');
+                document.getElementById('category-panel').classList.add('active');
+                loadCategoryStats();
+            } else {
+                document.querySelectorAll('.option-tab')[2].classList.add('active');
+                document.getElementById('keyword-panel').classList.add('active');
+                loadKeywordStats();
+            }
+        }
+
         // 页面加载
         document.addEventListener('DOMContentLoaded', function() {
             loadCategories();
-            // 自动加载分类和关键词统计
+            loadGroups();
+            // 自动加载统计
+            loadStats();
             loadCategoryStats();
             loadKeywordStats();
         });
         
-        // 显示统计面板
-        function showStatsPanel(type) {
-            document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.stats-panel').forEach(p => p.classList.remove('active'));
-            
-            if (type === 'category') {
-                document.querySelectorAll('.sub-tab')[0].classList.add('active');
-                document.getElementById('category-stats-panel').classList.add('active');
-            } else {
-                document.querySelectorAll('.sub-tab')[1].classList.add('active');
-                document.getElementById('keyword-stats-panel').classList.add('active');
-            }
-        }
-
         // 显示面板
         function showPanel(name) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -288,6 +421,23 @@
                 logInterval = setInterval(refreshStatus, 2000);
             } else {
                 if (logInterval) clearInterval(logInterval);
+            }
+        }
+
+        // 加载中文大类
+        async function loadGroups() {
+            try {
+                // 从category_mapping获取中文大类，或者硬编码（因为没有API返回）
+                const groups = ["人工智能","计算机视觉","自然语言处理","机器人学","医疗健康","数据科学","软件工程","网络安全","图形学与多媒体","分布式计算","数学与统计","物理学","信号处理","材料科学","天文学","经济学"];
+                const container = document.getElementById('groups');
+                container.innerHTML = groups.map(group => `
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="${group}">
+                        ${group}
+                    </label>
+                `).join('');
+            } catch(e) {
+                console.error('加载分类失败', e);
             }
         }
 
@@ -314,14 +464,35 @@
             return Array.from(boxes).map(b => b.value).join(',');
         }
 
+        // 获取选中的中文大类
+        function getSelectedGroups() {
+            const boxes = document.querySelectorAll('#groups input:checked');
+            return Array.from(boxes).map(b => b.value).join(',');
+        }
+
         // 启动爬虫
         async function startCrawler() {
             const years = parseFloat(document.getElementById('years').value);
             const maxResults = parseInt(document.getElementById('maxResults').value);
+            
+            // 检查三种方式中哪种有输入
+            const customGroups = document.getElementById('customGroups').value.trim();
+            const selectedGroups = getSelectedGroups();
             const categories = getSelectedCategories();
 
-            if (!categories) {
-                alert('请至少选择一个研究方向');
+            let requestBody = { years, max_results: maxResults };
+            
+            if (customGroups) {
+                // 方式二：手动输入关键词
+                requestBody.groups = customGroups;
+            } else if (selectedGroups) {
+                // 方式一：选择中文大类
+                requestBody.groups = selectedGroups;
+            } else if (categories) {
+                // 方式三：选择具体分类
+                requestBody.categories = categories;
+            } else {
+                alert('请选择一种爬取方式：选择中文大类、输入关键词或选择具体分类');
                 return;
             }
 
@@ -333,7 +504,7 @@
                 const res = await fetch('/crawler/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ years, categories, max_results: maxResults })
+                    body: JSON.stringify(requestBody)
                 });
                 const data = await res.json();
 
