@@ -204,30 +204,37 @@ def get_paper_trend(
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
     
-    # 构建查询
-    query_str = ""
-    if category:
-        query_str = f"cat:{category}"
-    
-    search = arxiv.Search(
-        query=query_str,
-        max_results=1000,
-        sort_by=arxiv.SortCriterion.SubmittedDate,
-        sort_order=arxiv.SortOrder.Descending
-    )
-    
+    # 构建查询 - 使用arxiv.Client代替已弃用的Search
     trend_dict = {}
     total_count = 0
     
     try:
-        for result in search.results():
+        client = arxiv.Client()
+        
+        # 构建查询条件
+        if category:
+            query_str = f"cat:{category}"
+        else:
+            # 如果没有指定分类，使用一个通用查询避免HTTP 400错误
+            query_str = "cat:cs.AI OR cat:cs.LG OR cat:cs.CV OR cat:stat.ML"
+        
+        search = arxiv.Search(
+            query=query_str,
+            max_results=1000,
+            sort_by=arxiv.SortCriterion.SubmittedDate,
+            sort_order=arxiv.SortOrder.Descending
+        )
+        
+        for result in client.results(search):
             published_date = result.published.replace(tzinfo=None)
             if published_date >= start_date:
                 date_str = published_date.strftime("%Y-%m-%d")
                 trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
                 total_count += 1
+                
     except Exception as e:
         # 如果 arXiv API 调用失败，回退到本地数据库统计
+        print(f"arXiv API失败，使用本地数据库: {str(e)}")
         papers = db.query(Paper).filter(Paper.published_at >= start_date)
         if category:
             papers = papers.filter(Paper.categories.contains(category))
@@ -257,7 +264,8 @@ def get_paper_trend(
         "start_date": start_date.strftime("%Y-%m-%d"),
         "end_date": end_date.strftime("%Y-%m-%d"),
         "total_count": total_count,
-        "category": category or "all"
+        "category": category or "all",
+        "source": "arxiv" if total_count > 0 else "local"
     }
 
 
