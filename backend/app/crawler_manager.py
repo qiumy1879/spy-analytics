@@ -1,16 +1,18 @@
 """
 爬虫管理模块
 提供通过 API 调用和管理爬虫任务
+支持中文大类名称自动转换为 arXiv 分类代码
 """
 import subprocess
 import threading
 import queue
 import os
 import sys
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
+from app.core.category_mapping import get_arxiv_categories, GROUP_NAMES
 
 router = APIRouter(
     prefix="/crawler",
@@ -31,11 +33,12 @@ log_queue = queue.Queue()
 
 class CrawlerRequest(BaseModel):
     years: Optional[float] = 0.5
-    categories: str = "cs.AI,cs.LG,cs.RO,cs.CV,cs.NE"
+    categories: Optional[str] = None  # arXiv分类代码，如 "cs.AI,cs.LG"
+    groups: Optional[str] = None  # 中文大类名称，如 "人工智能,计算机视觉"
     max_results: int = 50
 
 
-def run_crawler_process(years: float, categories: str, max_results: int):
+def run_crawler_process(years: float, categories: str, max_results: int, groups: Optional[str] = None):
     """在后台线程中运行爬虫"""
     global crawler_status
     
@@ -45,6 +48,7 @@ def run_crawler_process(years: float, categories: str, max_results: int):
     crawler_status["current_task"] = {
         "years": years,
         "categories": categories,
+        "groups": groups,
         "max_results": max_results
     }
     
@@ -102,12 +106,30 @@ async def start_crawler(request: CrawlerRequest, background_tasks: BackgroundTas
     if crawler_status["is_running"]:
         return {"success": False, "message": "爬虫正在运行中，请稍候"}
     
+    # 处理分类输入：优先使用 groups（中文大类），然后使用 categories（arXiv分类）
+    final_categories = request.categories
+    groups_used = request.groups
+    
+    if request.groups:
+        # 将中文大类转换为 arXiv 分类代码
+        group_list = [g.strip() for g in request.groups.split(',')]
+        arxiv_cats = get_arxiv_categories(group_list)
+        if arxiv_cats:
+            final_categories = ','.join(arxiv_cats)
+        else:
+            return {"success": False, "message": f"无效的中文大类名称: {request.groups}"}
+    
+    if not final_categories:
+        # 默认分类
+        final_categories = "cs.AI,cs.LG,cs.RO,cs.CV,cs.NE"
+    
     # 在后台任务中启动爬虫
     background_tasks.add_task(
         run_crawler_process,
         request.years,
-        request.categories,
-        request.max_results
+        final_categories,
+        request.max_results,
+        groups_used
     )
     
     return {
@@ -115,7 +137,8 @@ async def start_crawler(request: CrawlerRequest, background_tasks: BackgroundTas
         "message": "爬虫已启动",
         "task": {
             "years": request.years,
-            "categories": request.categories,
+            "groups": groups_used,
+            "categories": final_categories,
             "max_results": request.max_results
         }
     }
@@ -144,7 +167,7 @@ async def stop_crawler():
 
 @router.get("/directions")
 async def get_crawler_directions():
-    """获取可选的研究方向列表"""
+    """获取可选的研究方向列表（arXiv分类代码）"""
     return {
         "directions": [
             {"code": "cs.AI", "name": "人工智能"},
@@ -158,4 +181,12 @@ async def get_crawler_directions():
             {"code": "cs.OS", "name": "操作系统"},
             {"code": "cs.PL", "name": "编程语言"}
         ]
+    }
+
+
+@router.get("/groups")
+async def get_crawler_groups():
+    """获取可选的中文大类列表（支持用户输入选择）"""
+    return {
+        "groups": GROUP_NAMES
     }

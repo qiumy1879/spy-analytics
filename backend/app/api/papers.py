@@ -195,21 +195,36 @@ def get_summary_stats(db: Session = Depends(get_db)):
 @router.get("/stats/trend")
 def get_paper_trend(
     days: int = Query(30, description="查询天数"),
+    category: Optional[str] = Query(None, description="按分类筛选，如 cs.AI"),
     db: Session = Depends(get_db)
 ):
-    """获取论文数量时间趋势"""
+    """获取论文数量时间趋势（优先使用本地数据库统计）"""
+    
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
     
-    papers = db.query(Paper).filter(
-        Paper.published_at >= start_date
-    ).all()
-    
+    # 优先从本地数据库获取统计
     trend_dict = {}
+    total_count = 0
+    
+    papers = db.query(Paper).filter(Paper.published_at >= start_date)
+    if category:
+        papers = papers.filter(Paper.categories.contains(category))
+    papers = papers.all()
+    
     for paper in papers:
         if paper.published_at:
             date_str = paper.published_at.strftime("%Y-%m-%d")
             trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
+            total_count += 1
+    
+    # 填充缺失的日期（确保每天都有数据）
+    current_date = start_date
+    while current_date <= end_date:
+        date_str = current_date.strftime("%Y-%m-%d")
+        if date_str not in trend_dict:
+            trend_dict[date_str] = 0
+        current_date += timedelta(days=1)
     
     trend_data = [
         {"date": date, "count": count}
@@ -219,7 +234,9 @@ def get_paper_trend(
     return {
         "trend": trend_data,
         "start_date": start_date.strftime("%Y-%m-%d"),
-        "end_date": end_date.strftime("%Y-%m-%d")
+        "end_date": end_date.strftime("%Y-%m-%d"),
+        "total_count": total_count,
+        "category": category or "all"
     }
 
 
