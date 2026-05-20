@@ -18,22 +18,22 @@ class Paper(Base):
     paper_id = Column(String(50), nullable=False, unique=True, index=True)
 
     # 论文标题
-    title = Column(Text, nullable=False)
+    title = Column(Text, nullable=False, index=True)
 
     # 作者列表（JSON 字符串存储）
     authors = Column(Text)
 
     # 发表时间
-    published_at = Column(DateTime)
+    published_at = Column(DateTime, index=True)
 
     # arXiv 分类列表（JSON 字符串存储）
-    categories = Column(Text)
+    categories = Column(Text, index=True)
 
     # 关键词/tags（JSON 字符串存储）
     keywords = Column(Text)
 
     # 数据来源，固定为 "arxiv"
-    source = Column(String(50), nullable=False)
+    source = Column(String(50), nullable=False, index=True)
 
     # arXiv 页面 URL
     source_url = Column(Text)

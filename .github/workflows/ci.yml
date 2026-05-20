@@ -26,5 +26,6 @@ jobs:
     
     - name: Run tests
       run: |
-        echo "Tests will be added later"
+        cd backend
+        python -m pytest app/tests/ -v
 

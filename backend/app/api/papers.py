@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract
+from sqlalchemy import func, extract, and_
 from typing import List, Optional, Dict
 from app.models.paper import Paper
 from app.schemas.paper import PaperResponse, PaperCreate
@@ -198,28 +198,52 @@ def get_paper_trend(
     category: Optional[str] = Query(None, description="按分类筛选，如 cs.AI"),
     db: Session = Depends(get_db)
 ):
-    """获取论文数量时间趋势（统计用户已爬取论文的发布时间分布）"""
+    """获取论文数量时间趋势（统计用户已爬取论文的发布时间分布）
+    
+    性能优化：使用 SQL DATE() 和 GROUP BY 直接在数据库层面聚合，
+    避免加载所有论文到内存
+    """
     
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
     
-    # 从本地数据库获取论文
-    papers = db.query(Paper).filter(Paper.published_at >= start_date)
+    # 构建基础查询
+    base_query = db.query(Paper).filter(
+        and_(
+            Paper.published_at >= start_date,
+            Paper.published_at <= end_date,
+            Paper.published_at.isnot(None)
+        )
+    )
+    
     if category:
-        papers = papers.filter(Paper.categories.contains(category))
-    papers = papers.all()
+        base_query = base_query.filter(Paper.categories.contains(category))
     
-    # 统计每天的论文数量
-    trend_dict = {}
-    total_count = 0
+    # 用 SQL 聚合统计每天的数量
+    daily_counts = db.query(
+        func.date(Paper.published_at).label('date'),
+        func.count(Paper.id).label('count')
+    ).filter(
+        and_(
+            Paper.published_at >= start_date,
+            Paper.published_at <= end_date
+        )
+    )
     
-    for paper in papers:
-        if paper.published_at:
-            date_str = paper.published_at.strftime("%Y-%m-%d")
-            trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
-            total_count += 1
+    if category:
+        daily_counts = daily_counts.filter(Paper.categories.contains(category))
     
-    # 填充缺失的日期（确保每天都有数据）
+    daily_counts = daily_counts.group_by(
+        func.date(Paper.published_at)
+    ).all()
+    
+    # 构建结果字典
+    trend_dict = {str(date): count for date, count in daily_counts}
+    
+    # 计算总数量
+    total_count = sum(trend_dict.values())
+    
+    # 填充缺失的日期
     current_date = start_date
     while current_date <= end_date:
         date_str = current_date.strftime("%Y-%m-%d")
