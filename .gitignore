@@ -36,5 +36,8 @@ htmlcov/
 *.json
 !docker-compose.override.yml
 
+# 文档目录（仅本地使用，不上传）
+docs/
+
 .DS_Store
 

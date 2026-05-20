@@ -14,7 +14,7 @@ Spy Analytics 是一个 arXiv 论文数据采集与分析平台，爬取 arXiv �
 - **测试**: pytest + httpx
 - **CI/CD**: GitHub Actions
 
-## 已实现功能 (v1.7.0)
+## 已实现功能 (v2.0.0)
 
 ✅ **后端 API**
 - FastAPI 应用
@@ -82,7 +82,6 @@ spy-analytics/
 │   ├── settings.py       # Scrapy 配置
 │   └── config.yaml       # 项目配置
 ├── etl/                  # ETL 模块
-├── docs/                 # 文档
 ├── .github/
 │   └── workflows/
 │       └── ci.yml       # GitHub Actions CI/CD 配置
@@ -284,12 +283,13 @@ A: 删除 `spy_analytics.db` 文件，然后重新启动后端 API 会自动创�
 
 ## 更新日志
 
-### v1.8.0 (2026-05-20)
+### v2.0.0 (2026-05-20)
 - ✨ 新增：完整的单元测试套件（pytest）
 - ✨ 新增：GitHub Actions CI/CD 自动测试
 - ⚡ 优化：趋势统计接口使用 SQL 聚合替代内存计算
 - ⚡ 优化：为常用查询字段添加数据库索引
 - 📝 更新：README 文档添加测试和性能优化说明
+- 📝 更新：版本号更新为 2.0.0
 
 ### v1.7.0 (2026-05-18)
 - ✨ 新增：趋势统计API直接从arXiv获取数据（反映真实上传趋势）
