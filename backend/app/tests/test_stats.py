@@ -45,7 +45,7 @@ def test_summary_stats_with_data(client):
     
     assert data["total_papers"] == 3
     assert data["recent_papers_7d"] == 2  # 2天和5天前的论文在7天内
-    assert len(data["categories"]) &gt;= 1
+    assert len(data["categories"]) >= 1
 
 
 def test_trend_stats_empty(client):
@@ -68,7 +68,7 @@ def test_trend_stats_with_data(client):
     data = response.json()
     
     assert data["total_count"] == 3
-    assert any(day["count"] &gt; 0 for day in data["trend"])
+    assert any(day["count"] > 0 for day in data["trend"])
 
 
 def test_trend_stats_with_category_filter(client):
@@ -76,7 +76,7 @@ def test_trend_stats_with_category_filter(client):
     create_test_paper(client, "2301.20001", 1, ["cs.AI"])
     create_test_paper(client, "2301.20002", 1, ["cs.CV"])
     
-    response = client.get("/papers/stats/trend?days=7&amp;category=cs.AI")
+    response = client.get("/papers/stats/trend?days=7&category=cs.AI")
     assert response.status_code == 200
     data = response.json()
     
@@ -94,7 +94,7 @@ def test_category_stats(client):
     assert response.status_code == 200
     data = response.json()
     
-    assert data["total_categories"] &gt;= 3
+    assert data["total_categories"] >= 3
     assert any(cat["category"] == "cs.AI" for cat in data["categories"])
     assert any(cat["category_name"] == "人工智能" for cat in data["categories"])
 
@@ -107,8 +107,8 @@ def test_author_stats(client):
     assert response.status_code == 200
     data = response.json()
     
-    assert data["total_authors"] &gt;= 1
-    assert len(data["top_authors"]) &gt;= 1
+    assert data["total_authors"] >= 1
+    assert len(data["top_authors"]) >= 1
 
 
 def test_keyword_stats(client):
@@ -122,5 +122,4 @@ def test_keyword_stats(client):
     assert response.status_code == 200
     data = response.json()
     
-    assert len(data["top_keywords"]) &gt;= 1
-
+    assert len(data["top_keywords"]) >= 1

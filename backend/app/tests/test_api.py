@@ -103,7 +103,7 @@ def test_search_papers_by_keyword(client):
     
     response = client.get("/papers/?keyword=Learning")
     assert response.status_code == 200
-    assert len(response.json()) &gt;= 1
+    assert len(response.json()) >= 1
 
 
 def test_delete_paper(client):

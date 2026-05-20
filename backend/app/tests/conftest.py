@@ -4,7 +4,7 @@ pytest 配置文件
 提供测试客户端和测试数据库
 """
 import pytest
-from fastapi.testclient import TestClient
+from starlette.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -47,4 +47,3 @@ def client():
     # 清理数据库
     Base.metadata.drop_all(bind=engine)
     app.dependency_overrides.clear()
-
