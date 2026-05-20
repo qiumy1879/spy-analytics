@@ -11,6 +11,8 @@ Spy Analytics 是一个 arXiv 论文数据采集与分析平台，爬取 arXiv �
 - **数据库**: SQLite
 - **ORM**: SQLAlchemy
 - **容器化**: Docker + Docker Compose (可选)
+- **测试**: pytest + httpx
+- **CI/CD**: GitHub Actions
 
 ## 已实现功能 (v1.7.0)
 
@@ -48,6 +50,15 @@ Spy Analytics 是一个 arXiv 论文数据采集与分析平台，爬取 arXiv �
 - 数据可视化页面
 - 统计信息查看
 
+✅ **测试与 CI/CD**
+- 完整的单元测试覆盖（API + 统计接口）
+- GitHub Actions 自动测试
+- 内存 SQLite 测试数据库，隔离性好
+
+✅ **性能优化**
+- 统计接口使用 SQL 聚合（GROUP BY）替代内存计算
+- 为常用查询字段添加数据库索引
+
 ## 项目结构
 
 ```
@@ -58,6 +69,10 @@ spy-analytics/
 │   │   ├── core/         # 核心配置
 │   │   ├── models/       # 数据库模型
 │   │   ├── schemas/      # Pydantic 模型
+│   │   ├── tests/        # 单元测试
+│   │   │   ├── conftest.py  # pytest 配置
+│   │   │   ├── test_api.py  # API 测试
+│   │   │   └── test_stats.py # 统计接口测试
 │   │   └── main.py       # 入口文件
 │   └── requirements.txt
 ├── crawler/              # 爬虫模块
@@ -68,6 +83,9 @@ spy-analytics/
 │   └── config.yaml       # 项目配置
 ├── etl/                  # ETL 模块
 ├── docs/                 # 文档
+├── .github/
+│   └── workflows/
+│       └── ci.yml       # GitHub Actions CI/CD 配置
 ├── scrapy.cfg            # Scrapy 配置
 ├── docker-compose.yml    # Docker Compose (可选)
 ├── .gitignore
@@ -142,6 +160,22 @@ python -m scrapy crawl arxiv -a days=7 -a categories=cs.AI,cs.LG,cs.RO,cs.CV,cs.
 **参数说明：**
 - `days`: 爬取最近几天的论文（如不指定，使用配置文件中的默认值）
 - `categories`: 要爬取的分类，多个分类用逗号分隔（如不指定，使用配置文件中的默认值）
+
+---
+
+#### 4. 运行测试
+
+```bash
+cd backend
+# 运行所有测试
+python -m pytest app/tests/ -v
+
+# 运行特定测试文件
+python -m pytest app/tests/test_api.py -v
+python -m pytest app/tests/test_stats.py -v
+```
+
+测试会自动使用内存 SQLite 数据库，不会影响你的开发数据。
 
 ---
 
@@ -249,6 +283,13 @@ A: 删除 `spy_analytics.db` 文件，然后重新启动后端 API 会自动创�
 ---
 
 ## 更新日志
+
+### v1.8.0 (2026-05-20)
+- ✨ 新增：完整的单元测试套件（pytest）
+- ✨ 新增：GitHub Actions CI/CD 自动测试
+- ⚡ 优化：趋势统计接口使用 SQL 聚合替代内存计算
+- ⚡ 优化：为常用查询字段添加数据库索引
+- 📝 更新：README 文档添加测试和性能优化说明
 
 ### v1.7.0 (2026-05-18)
 - ✨ 新增：趋势统计API直接从arXiv获取数据（反映真实上传趋势）
